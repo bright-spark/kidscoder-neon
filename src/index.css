@@ -1,0 +1,143 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 270 50% 98%;
+    --foreground: 270 10% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 270 10% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 270 10% 3.9%;
+    --primary: 270 54% 50%;
+    --primary-foreground: 270 10% 98%;
+    --secondary: 270 14.3% 95.9%;
+    --secondary-foreground: 270 10% 9%;
+    --muted: 270 14.3% 95.9%;
+    --muted-foreground: 270 5.9% 41.1%;
+    --accent: 270 14.3% 95.9%;
+    --accent-foreground: 270 10% 9%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 270 20% 87%;
+    --input: 270 20% 87%;
+    --ring: 270 100% 80%;
+    --radius: 0.75rem;
+  }
+
+  .dark {
+    --background: 270 50% 3.9%;
+    --foreground: 270 10% 98%;
+    --card: 270 50% 3.9%;
+    --card-foreground: 270 10% 98%;
+    --popover: 270 50% 3.9%;
+    --popover-foreground: 270 10% 98%;
+    --primary: 270 54% 50%;
+    --primary-foreground: 270 10% 98%;
+    --secondary: 270 14.3% 14.9%;
+    --secondary-foreground: 270 10% 98%;
+    --muted: 270 14.3% 14.9%;
+    --muted-foreground: 270 5.9% 63.9%;
+    --accent: 270 14.3% 14.9%;
+    --accent-foreground: 270 10% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 270 10% 98%;
+    --border: 270 14.3% 14.9%;
+    --input: 270 14.3% 14.9%;
+    --ring: 270 100% 80%;
+  }
+}
+
+/* Neon Input Styles */
+textarea:focus {
+  box-shadow: 
+    0 0 5px theme('colors.purple.500'),
+    0 0 15px theme('colors.purple.500/50'),
+    0 0 30px theme('colors.purple.500/30'),
+    inset 0 0 10px theme('colors.purple.500/10');
+}
+
+/* Card Border Styles */
+.card {
+  border: 2px solid theme('colors.purple.500/30');
+  box-shadow: 
+    0 0 10px theme('colors.purple.500/20'),
+    0 0 20px theme('colors.purple.500/10'),
+    inset 0 0 30px theme('colors.purple.500/5');
+}
+
+/* Button Neon Effects */
+.button-neon {
+  box-shadow: 
+    0 0 5px currentColor,
+    0 0 15px currentColor,
+    0 0 30px currentColor;
+  border: 2px solid currentColor;
+  transition: all 0.3s ease;
+}
+
+.button-neon:hover {
+  box-shadow: 
+    0 0 10px currentColor,
+    0 0 20px currentColor,
+    0 0 40px currentColor;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Base Toast Styles */
+.toast-viewport {
+  @apply fixed bottom-0 right-0 flex flex-col p-4 gap-2 z-50 pointer-events-none;
+}
+
+.toast {
+  @apply pointer-events-auto overflow-hidden p-4;
+  transform-origin: bottom right;
+}
+
+/* Toast Animations */
+@keyframes toast-enter {
+  from {
+    transform: scale(0.8) translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes toast-exit {
+  from {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+  to {
+    transform: scale(0.8) translateY(100%);
+    opacity: 0;
+  }
+}
+
+.toast[data-state="open"] {
+  animation: toast-enter 0.35s cubic-bezier(0.21, 1.02, 0.73, 1) forwards;
+}
+
+.toast[data-state="closed"] {
+  animation: toast-exit 0.4s cubic-bezier(0.06, 0.71, 0.55, 1) forwards;
+}
