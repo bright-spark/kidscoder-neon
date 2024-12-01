@@ -80,14 +80,18 @@ export function ButtonSlider({ options, className }: ButtonSliderProps) {
   };
 
   return (
-    <div className={cn("relative flex items-center gap-2 w-full justify-end sticky right-0", className)}>
-      <div className="relative flex-1 overflow-x-auto">
+    <div className={cn(
+      "flex items-center justify-end sticky right-0 z-20",
+      "bg-inherit backdrop-blur-[2px]",
+      className
+    )}>
+      <div className="flex-1 overflow-x-auto max-w-full">
         <div
           ref={sliderRef}
           className={cn(
-            "flex gap-1.5 justify-end overflow-x-auto scrollbar-hide snap-x snap-mandatory",
+            "flex gap-0.5 sm:gap-1 justify-end overflow-x-auto scrollbar-hide snap-x snap-mandatory",
             "cursor-grab active:cursor-grabbing touch-pan-x",
-            "scroll-smooth"
+            "scroll-smooth pr-0.5"
           )}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
@@ -112,25 +116,25 @@ export function ButtonSlider({ options, className }: ButtonSliderProps) {
                 size: showLabels ? 'sm' : 'icon',
                 state: option.disabled ? 'inactive' : 'active',
                 className: cn(
-                  "snap-start whitespace-nowrap flex-shrink-0 justify-center transition-all duration-200 select-none h-8",
+                  "snap-start whitespace-nowrap flex-shrink-0 justify-center transition-all duration-200 select-none",
                   showLabels 
-                    ? "w-[80px] md:w-[100px]" 
-                    : "w-8"
+                    ? "w-[70px] md:w-[85px] h-8" 
+                    : "w-6 h-6 p-1"
                 )
               })}
             >
               <span className={cn(
                 "flex items-center justify-center",
-                showLabels ? "gap-2" : "gap-0"
+                showLabels ? "gap-1.5" : "gap-0"
               )}>
                 <span className={cn(
                   "transition-all duration-200 flex items-center justify-center",
-                  !showLabels && "scale-75"
+                  !showLabels && "scale-[0.85]"
                 )}>
                   {option.icon}
                 </span>
                 {showLabels && (
-                  <span className="truncate text-xs">{option.label}</span>
+                  <span className="truncate text-[11px]">{option.label}</span>
                 )}
               </span>
             </button>

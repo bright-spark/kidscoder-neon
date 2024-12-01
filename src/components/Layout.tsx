@@ -4,14 +4,15 @@ import {
   Sparkles,
   MessageSquare,
   Code2,
-  Share2,
+  Download,
   Wand2,
   Bug,
   Eye,
   Moon,
   Sun,
   Laptop,
-  Trash2
+  Trash2,
+  Loader2
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
@@ -31,14 +32,17 @@ import { ChatPanel } from './ChatPanel';
 import { CodeEditor } from './CodeEditor';
 import { ProcessingOverlay } from './ProcessingOverlay';
 import { cn } from '@/lib/utils';
+import JSZip from 'jszip';
+import { saveAs } from 'file-saver';
 
 export function Layout() {
   const [activePanel, setActivePanel] = useState('chat');
   const [isProcessing, setIsProcessing] = useState(false);
   const { theme, setTheme } = useTheme();
-  const { messages, clearMessages, contextId } = useChat();
-  const { code, setCode, handleShare, handleDebug, handleImprove, cancelOperation } = useEditor();
+  const { messages, clearMessages } = useChat();
+  const { code, setCode, handleDebug, handleImprove, cancelOperation } = useEditor();
   const { toast } = useToast();
+  const [isDownloading, setIsDownloading] = useState(false);
   
   const hasContent = messages.length > 0;
   const [showPreview, setShowPreview] = useState(false);
@@ -59,6 +63,41 @@ export function Layout() {
     }
   };
 
+  const handleDownload = async () => {
+    if (!code) return;
+    setIsDownloading(true);
+    try {
+      // Get the first user prompt to use as filename
+      const firstPrompt = messages.find(m => m.role === 'user')?.content || 'project';
+      const safeFileName = firstPrompt
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '')
+        .substring(0, 50);
+
+      const zip = new JSZip();
+      zip.file('index.html', code);
+      
+      const blob = await zip.generateAsync({ type: 'blob' });
+      saveAs(blob, `${safeFileName}.zip`);
+      
+      toast({
+        title: 'Download complete',
+        description: 'Your code has been downloaded successfully.',
+      });
+    } catch (error) {
+      console.error('Error downloading code:', error);
+      toast({
+        title: 'Download failed',
+        description: 'Failed to create zip file. Please try again.',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
   const menuGroups = [
     {
       title: 'Navigation',
@@ -68,15 +107,16 @@ export function Layout() {
           label: 'Chat',
           onClick: () => setActivePanel('chat'),
           active: activePanel === 'chat',
-          intent: 'primary' as const
+          intent: 'primary' as const,
+          disabled: false
         },
         {
           icon: <Code2 className="h-4 w-4" />,
           label: 'Editor',
           onClick: () => setActivePanel('editor'),
           active: activePanel === 'editor',
-          disabled: !hasContent,
-          intent: 'primary' as const
+          intent: 'primary' as const,
+          disabled: !hasContent
         }
       ]
     },
@@ -88,29 +128,29 @@ export function Layout() {
           label: 'Preview',
           onClick: handlePreviewToggle,
           active: showPreview,
-          disabled: activePanel !== 'editor' || !code,
-          intent: 'preview' as const
+          intent: 'preview' as const,
+          disabled: activePanel !== 'editor' || !code
         },
         {
-          icon: <Share2 className="h-4 w-4" />,
-          label: 'Share Code',
-          onClick: () => handleShare(),
-          disabled: activePanel !== 'editor' || !code,
-          intent: 'success' as const
+          icon: isDownloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />,
+          label: 'Download',
+          onClick: handleDownload,
+          intent: 'success' as const,
+          disabled: activePanel !== 'editor' || !code || isDownloading
         },
         {
           icon: <Bug className="h-4 w-4" />,
           label: 'Debug',
           onClick: () => handleDebug(),
-          disabled: activePanel !== 'editor' || !code,
-          intent: 'secondary' as const
+          intent: 'secondary' as const,
+          disabled: activePanel !== 'editor' || !code
         },
         {
           icon: <Wand2 className="h-4 w-4" />,
           label: 'Improve',
           onClick: () => handleImprove(),
-          disabled: activePanel !== 'editor' || !code,
-          intent: 'secondary' as const
+          intent: 'secondary' as const,
+          disabled: activePanel !== 'editor' || !code
         }
       ]
     },
@@ -121,19 +161,25 @@ export function Layout() {
           icon: <Sun className="h-4 w-4" />,
           label: 'Light',
           onClick: () => setTheme('light'),
-          active: theme === 'light'
+          active: theme === 'light',
+          intent: 'primary' as const,
+          disabled: false
         },
         {
           icon: <Moon className="h-4 w-4" />,
           label: 'Dark',
           onClick: () => setTheme('dark'),
-          active: theme === 'dark'
+          active: theme === 'dark',
+          intent: 'primary' as const,
+          disabled: false
         },
         {
           icon: <Laptop className="h-4 w-4" />,
           label: 'System',
           onClick: () => setTheme('system'),
-          active: theme === 'system'
+          active: theme === 'system',
+          intent: 'primary' as const,
+          disabled: false
         }
       ]
     },
@@ -144,14 +190,14 @@ export function Layout() {
           icon: <Trash2 className="h-4 w-4" />,
           label: 'Clear All',
           onClick: handleClear,
-          disabled: !hasContent,
-          intent: 'danger' as const
+          intent: 'danger' as const,
+          disabled: !hasContent
         }
       ]
     }
   ];
 
-  const handleProcessingStart = (controller: AbortController) => {
+  const handleProcessingStart = () => {
     setIsProcessing(true);
   };
 

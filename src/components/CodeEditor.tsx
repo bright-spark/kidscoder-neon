@@ -24,6 +24,8 @@ import {
   Wand2,
   Loader2,
 } from 'lucide-react';
+// @ts-ignore
+const classNames: any = require('classnames');
 
 interface CodeEditorProps {
   onSwitchToChat: () => void;
@@ -41,11 +43,30 @@ export function CodeEditor({ onSwitchToChat, showPreview, onPreviewChange }: Cod
   const editorRef = useRef<any>(null);
   const { setHtml } = usePreview();
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+  const [isIconVisible, setIsIconVisible] = useState(true);
+  const iconRef = useRef<HTMLDivElement>(null);
+  const sliderRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleResize = () => setWindowWidth(window.innerWidth);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  useEffect(() => {
+    const checkOverlap = () => {
+      if (!iconRef.current || !sliderRef.current) return;
+      const iconRect = iconRef.current.getBoundingClientRect();
+      const sliderRect = sliderRef.current.getBoundingClientRect();
+      setIsIconVisible(iconRect.right < sliderRect.left);
+    };
+
+    const observer = new ResizeObserver(checkOverlap);
+    if (sliderRef.current) {
+      observer.observe(sliderRef.current);
+    }
+
+    return () => observer.disconnect();
   }, []);
 
   const handleDownload = async () => {
@@ -206,15 +227,19 @@ export function CodeEditor({ onSwitchToChat, showPreview, onPreviewChange }: Cod
         isVisible={isProcessing}
         onCancel={cancelOperation} />
       <Card className="flex h-full flex-col overflow-hidden border-none bg-background/60 backdrop-blur supports-[backdrop-filter]:bg-background/60 relative">
-        <div className="flex items-center justify-between border-b p-2 sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-          <div className="flex items-center gap-2">
-            <Code2 className="h-5 w-5 md:h-8 md:w-8 text-purple-500" />
-            <div className="flex items-center gap-2">
-              <h2 className="text-lg font-semibold hidden md:block">
-                {showPreview ? 'Preview' : 'Editor'}
-              </h2>
+        <div className="flex items-center justify-between border-b sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+          <div className="flex items-center gap-1 sm:gap-2 py-2 pl-2">
+            <div ref={iconRef} className={classNames(
+              "transition-opacity duration-200",
+              isIconVisible ? "opacity-100" : "opacity-0"
+            )}>
+              <Code2 className="h-5 w-5 md:h-8 md:w-8 text-purple-500 shrink-0" />
+            </div>
+            <h2 className="text-lg font-semibold hidden md:block shrink-0">
+              {showPreview ? 'Preview' : 'Editor'}
+            </h2>
             {!showPreview && window.innerWidth >= 640 && (
-              <div className="flex gap-1">
+              <div className="flex gap-0.5 shrink-0">
                 <Button
                   variant="ghost"
                   size="sm"
@@ -235,10 +260,44 @@ export function CodeEditor({ onSwitchToChat, showPreview, onPreviewChange }: Cod
                 </Button>
               </div>
             )}
-            </div>
-            <ButtonSlider options={buttonOptions} className="absolute right-2 top-1/2 -translate-y-1/2 max-w-[calc(100%-120px)] md:max-w-[70%]" />
           </div>
-        </div>
+          <div ref={sliderRef} className="sticky right-0 flex-grow flex justify-end">
+            <ButtonSlider 
+              options={buttonOptions} 
+              className="min-w-0 pr-1" 
+            />
+          </div>
+<div ref={iconRef} className={classNames(
+  "transition-opacity duration-200",
+  isIconVisible ? "opacity-100" : "opacity-0"
+)}>
+  <Code2 className="h-5 w-5 md:h-8 md:w-8 text-purple-500 shrink-0" />
+</div><div ref={iconRef} className={classNames(
+  "transition-opacity duration-200",
+  isIconVisible ? "opacity-100" : "opacity-0"
+)}>
+  <Code2 className="h-5 w-5 md:h-8 md:w-8 text-purple-500 shrink-0" />
+</div><div ref={iconRef} className={classNames(
+  "transition-opacity duration-200",
+  isIconVisible ? "opacity-100" : "opacity-0"
+)}>
+  <Code2 className="h-5 w-5 md:h-8 md:w-8 text-purple-500 shrink-0" />
+</div><div ref={iconRef} className={classNames(
+  "transition-opacity duration-200",
+  isIconVisible ? "opacity-100" : "opacity-0"
+)}>
+  <Code2 className="h-5 w-5 md:h-8 md:w-8 text-purple-500 shrink-0" />
+</div><div ref={iconRef} className={classNames(
+  "transition-opacity duration-200",
+  isIconVisible ? "opacity-100" : "opacity-0"
+)}>
+  <Code2 className="h-5 w-5 md:h-8 md:w-8 text-purple-500 shrink-0" />
+</div><div ref={iconRef} className={classNames(
+  "transition-opacity duration-200",
+  isIconVisible ? "opacity-100" : "opacity-0"
+)}>
+  <Code2 className="h-5 w-5 md:h-8 md:w-8 text-purple-500 shrink-0" />
+</div>        </div>
 
         <div className="relative flex-1 overflow-hidden">
           {showPreview ? (
