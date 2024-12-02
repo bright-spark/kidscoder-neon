@@ -243,16 +243,16 @@ export function CodeEditor({ onSwitchToChat, showPreview, onPreviewChange }: Cod
 
   const buttonOptions = [
     {
-      icon: showPreview ? <Code2 className="h-4 w-4" /> : <Layout className="h-4 w-4" />,
-      label: showPreview ? 'Editor' : 'Preview',
-      onClick: handlePreviewToggle,
-      intent: 'preview' as const,
-    },
-    {
       icon: <ChevronRight className="h-4 w-4" />,
       label: 'Prompt',
       onClick: onSwitchToChat,
       intent: 'primary' as const,
+    },
+    {
+      icon: showPreview ? <Code2 className="h-4 w-4" /> : <Layout className="h-4 w-4" />,
+      label: showPreview ? 'Editor' : 'Preview',
+      onClick: handlePreviewToggle,
+      intent: 'preview' as const,
     },
     {
       icon: isDebugging ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bug className="h-4 w-4" />,

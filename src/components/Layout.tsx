@@ -30,8 +30,8 @@ import { useChat } from '@/contexts/ChatContext';
 import { useEditor } from '@/contexts/EditorContext';
 import { ChatPanel } from './ChatPanel';
 import { CodeEditor } from './CodeEditor';
-import { CodeSandbox } from './CodeSandbox';
 import { ProcessingOverlay } from './ProcessingOverlay';
+import { LivePreview } from './LivePreview';
 import { cn } from '@/lib/utils';
 import { getCodeSuggestions } from '@/lib/openai';
 import JSZip from 'jszip';
@@ -316,11 +316,8 @@ export function Layout() {
             onProcessingEnd={handleProcessingEnd}
           />
         ) : (
-          <div className="flex flex-col h-full">
-            <div className={cn(
-              "flex-1 min-h-0",
-              showPreview && "h-1/2"
-            )}>
+          <div className="flex flex-col flex-1 min-h-0">
+            <div className="flex-1 min-h-0">
               <CodeEditor 
                 onSwitchToChat={() => setActivePanel('chat')}
                 showPreview={showPreview}
@@ -328,18 +325,8 @@ export function Layout() {
               />
             </div>
             {showPreview && (
-              <div className="flex-1 min-h-0 border-t">
-                <CodeSandbox
-                  code={code || ''}
-                  className="w-full h-full"
-                  onError={(error) => {
-                    toast({
-                      title: 'Preview Error',
-                      description: error,
-                      variant: 'destructive'
-                    });
-                  }}
-                />
+              <div className="flex-1 min-h-0">
+                <LivePreview />
               </div>
             )}
           </div>
