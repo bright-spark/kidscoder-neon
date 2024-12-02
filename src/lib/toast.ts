@@ -26,3 +26,5 @@ export const showToast = {
   success: (options: ToastOptions) => createToast('success', options),
   progress: (options: ToastOptions) => createToast('progress', options)
 }
+
+export { toast }

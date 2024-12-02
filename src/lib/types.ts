@@ -6,9 +6,12 @@ export interface Message {
 export interface ChatContext {
   messages: Message[];
   addMessage: (message: Message) => void;
-  clearLastMessage: () => void;
   clearMessages: () => void;
+  clearLastMessage: () => void;
+  updateLastMessage: (content: string) => void;
   contextId: string;
+  totalCharacters: number;
+  updateTotalCharacters: (count: number) => void;
 }
 
 export interface EditorContext {

@@ -6,9 +6,25 @@ const ChatContext = createContext<ChatContext | undefined>(undefined);
 export function ChatProvider({ children }: { children: React.ReactNode }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [contextId, setContextId] = useState<string>(crypto.randomUUID());
+  const [totalCharacters, setTotalCharacters] = useState<number>(0);
 
   const addMessage = (message: Message) => {
     setMessages((prev) => [...prev, message]);
+    setTotalCharacters((prev) => prev + message.content.length);
+  };
+
+  const updateLastMessage = (content: string) => {
+    setMessages((prev) => {
+      const newMessages = [...prev];
+      if (newMessages.length > 0) {
+        const lastMessage = newMessages[newMessages.length - 1];
+        newMessages[newMessages.length - 1] = {
+          ...lastMessage,
+          content
+        };
+      }
+      return newMessages;
+    });
   };
 
   const clearLastMessage = () => {
@@ -22,10 +38,24 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const clearMessages = () => {
     setMessages([]);
     setContextId(crypto.randomUUID());
+    setTotalCharacters(0);
+  };
+
+  const updateTotalCharacters = (count: number) => {
+    setTotalCharacters((prev) => prev + count);
   };
 
   return (
-    <ChatContext.Provider value={{ messages, addMessage, clearMessages, clearLastMessage, contextId }}>
+    <ChatContext.Provider value={{
+      messages,
+      addMessage,
+      clearMessages,
+      clearLastMessage,
+      updateLastMessage,
+      contextId,
+      totalCharacters,
+      updateTotalCharacters
+    }}>
       {children}
     </ChatContext.Provider>
   );

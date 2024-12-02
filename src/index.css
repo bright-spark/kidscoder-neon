@@ -4,26 +4,26 @@
 
 @layer base {
   :root {
-    --background: 270 50% 98%;
-    --foreground: 270 10% 3.9%;
+    --background: 0 0% 100%;
+    --foreground: 270 25% 15%;
     --card: 0 0% 100%;
-    --card-foreground: 270 10% 3.9%;
+    --card-foreground: 270 25% 15%;
     --popover: 0 0% 100%;
-    --popover-foreground: 270 10% 3.9%;
-    --primary: 270 54% 50%;
-    --primary-foreground: 270 10% 98%;
-    --secondary: 270 14.3% 95.9%;
-    --secondary-foreground: 270 10% 9%;
-    --muted: 270 14.3% 95.9%;
-    --muted-foreground: 270 5.9% 41.1%;
-    --accent: 270 14.3% 95.9%;
-    --accent-foreground: 270 10% 9%;
+    --popover-foreground: 270 25% 15%;
+    --primary: 270 70% 55%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 270 30% 94%;
+    --secondary-foreground: 270 25% 20%;
+    --muted: 270 25% 92%;
+    --muted-foreground: 270 25% 35%;
+    --accent: 270 35% 90%;
+    --accent-foreground: 270 25% 20%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
-    --border: 270 20% 87%;
-    --input: 270 20% 87%;
-    --ring: 270 100% 80%;
-    --radius: 0.75rem;
+    --border: 270 35% 85%;
+    --input: 270 35% 85%;
+    --ring: 270 90% 65%;
+    --radius: 0.5rem;
   }
 
   .dark {
@@ -52,36 +52,170 @@
 /* Neon Input Styles */
 textarea:focus {
   box-shadow: 
-    0 0 5px theme('colors.purple.500'),
-    0 0 15px theme('colors.purple.500/50'),
-    0 0 30px theme('colors.purple.500/30'),
-    inset 0 0 10px theme('colors.purple.500/10');
+    0 0 2px theme('colors.purple.500'),
+    0 0 8px theme('colors.purple.500/30'),
+    0 0 16px theme('colors.purple.500/20'),
+    inset 0 0 4px theme('colors.purple.500/10');
+  border-color: theme('colors.purple.400');
+}
+
+input:focus {
+  box-shadow: 
+    0 0 2px theme('colors.purple.500'),
+    0 0 8px theme('colors.purple.500/30'),
+    0 0 16px theme('colors.purple.500/20'),
+    inset 0 0 4px theme('colors.purple.500/10');
+  border-color: theme('colors.purple.400');
 }
 
 /* Card Border Styles */
 .card {
-  border: 2px solid theme('colors.purple.500/30');
-  box-shadow: 
-    0 0 10px theme('colors.purple.500/20'),
-    0 0 20px theme('colors.purple.500/10'),
-    inset 0 0 30px theme('colors.purple.500/5');
+  border: 1px solid theme('colors.purple.500/20');
+  background-color: white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
-/* Button Neon Effects */
+/* Button Base Styles */
 .button-neon {
-  box-shadow: 
-    0 0 5px currentColor,
-    0 0 15px currentColor,
-    0 0 30px currentColor;
-  border: 2px solid currentColor;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
 }
 
-.button-neon:hover {
+/* Light Mode Button Styles */
+:root .button-neon {
+  background-color: rgba(255, 255, 255, 0.8);
+  border: 1px solid theme('colors.purple.500/20');
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  color: theme('colors.purple.600');
+}
+
+:root .button-neon:hover {
+  background-color: rgba(255, 255, 255, 0.9);
+  border-color: theme('colors.purple.500/30');
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transform: translateY(-1px);
+}
+
+:root .button-neon:active {
+  background-color: rgba(255, 255, 255, 0.8);
+  transform: translateY(0px);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+/* Dark Mode Button Styles */
+.dark .button-neon {
+  background-color: rgba(0, 0, 0, 0.8);
+  border: 2px solid currentColor;
   box-shadow: 
-    0 0 10px currentColor,
-    0 0 20px currentColor,
-    0 0 40px currentColor;
+    0 0 4px currentColor,
+    0 0 12px currentColor/70,
+    0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.dark .button-neon:hover {
+  background-color: rgba(0, 0, 0, 0.9);
+  box-shadow: 
+    0 0 8px currentColor,
+    0 0 16px currentColor/70,
+    0 4px 8px rgba(0, 0, 0, 0.15);
+  transform: translateY(-1px);
+}
+
+.dark .button-neon:active {
+  background-color: rgba(0, 0, 0, 0.8);
+  transform: translateY(0px);
+  box-shadow: 
+    0 0 4px currentColor,
+    0 0 12px currentColor/70,
+    0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Primary Button Styles */
+:root .button-primary {
+  background-color: rgba(147, 51, 234, 0.8); /* purple-600 */
+  color: white;
+  border: 1px solid rgba(147, 51, 234, 0.3);
+}
+
+:root .button-primary:hover {
+  background-color: rgba(147, 51, 234, 0.9);
+}
+
+:root .button-primary:active {
+  background-color: rgba(147, 51, 234, 0.8);
+}
+
+.dark .button-primary {
+  background-color: rgba(192, 132, 252, 0.8); /* purple-400 */
+  color: black;
+  border: 1px solid rgba(192, 132, 252, 0.3);
+}
+
+.dark .button-primary:hover {
+  background-color: rgba(192, 132, 252, 0.9);
+}
+
+.dark .button-primary:active {
+  background-color: rgba(192, 132, 252, 0.8);
+}
+
+/* Input Focus Styles */
+textarea,
+input {
+  background-color: white;
+  border: 1px solid theme('colors.purple.500/20');
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+textarea:focus,
+input:focus {
+  background-color: white;
+  border-color: theme('colors.purple.500');
+  box-shadow: 0 0 0 1px theme('colors.purple.500/30');
+}
+
+/* Toast Styles */
+.toast {
+  background-color: white;
+  border: 1px solid theme('colors.purple.500/20');
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Dialog Content */
+.dialog-content {
+  background-color: white;
+  border: 1px solid theme('colors.purple.500/20');
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Command Menu */
+.command-menu {
+  background-color: white;
+  border: 1px solid theme('colors.purple.500/20');
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Scrollbar Styles */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: theme('colors.purple.400');
+  border-radius: 5px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: theme('colors.purple.500');
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }
 
 @layer base {

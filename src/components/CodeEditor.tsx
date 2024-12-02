@@ -24,8 +24,7 @@ import {
   Wand2,
   Loader2,
 } from 'lucide-react';
-// @ts-ignore
-const classNames: any = require('classnames');
+import classNames from 'classnames';
 
 interface CodeEditorProps {
   onSwitchToChat: () => void;
@@ -43,9 +42,16 @@ export function CodeEditor({ onSwitchToChat, showPreview, onPreviewChange }: Cod
   const editorRef = useRef<any>(null);
   const { setHtml } = usePreview();
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
-  const [isIconVisible, setIsIconVisible] = useState(true);
+  // Initialize with descriptive element names
+  const [blurStates, setBlurStates] = useState(() => ({
+    'Undo/Redo Buttons': false,
+    'Screen Name': false,
+    'Editor Icon': false
+  }));
   const iconRef = useRef<HTMLDivElement>(null);
   const sliderRef = useRef<HTMLDivElement>(null);
+  const nameRef = useRef<HTMLHeadingElement>(null);
+  const buttonsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleResize = () => setWindowWidth(window.innerWidth);
@@ -55,18 +61,75 @@ export function CodeEditor({ onSwitchToChat, showPreview, onPreviewChange }: Cod
 
   useEffect(() => {
     const checkOverlap = () => {
-      if (!iconRef.current || !sliderRef.current) return;
-      const iconRect = iconRef.current.getBoundingClientRect();
+      // Reset to unblurred state if no slider ref
+      if (!sliderRef.current) {
+        setBlurStates({
+          'Undo/Redo Buttons': false,
+          'Screen Name': false,
+          'Editor Icon': false
+        });
+        return;
+      }
+
+      // Get all the required refs, if any missing, those elements stay unblurred
       const sliderRect = sliderRef.current.getBoundingClientRect();
-      setIsIconVisible(iconRect.right < sliderRect.left);
+      const iconRect = iconRef.current?.getBoundingClientRect();
+      const nameRect = nameRef.current?.getBoundingClientRect();
+      const buttonsRect = buttonsRef.current?.getBoundingClientRect();
+
+      // Helper function to check if two rectangles overlap
+      const isOverlapping = (rect1: DOMRect, rect2?: DOMRect) => {
+        if (!rect2) return false;
+        
+        // Add padding to make overlap detection less sensitive
+        const padding = 5;
+        return !(
+          rect1.right + padding < rect2.left ||
+          rect1.left - padding > rect2.right ||
+          rect1.bottom + padding < rect2.top ||
+          rect1.top - padding > rect2.bottom
+        );
+      };
+
+      // Check each element for actual intersection, default to unblurred
+      const newBlurStates = {
+        'Undo/Redo Buttons': buttonsRect ? isOverlapping(sliderRect, buttonsRect) : false,
+        'Screen Name': nameRect ? isOverlapping(sliderRect, nameRect) : false,
+        'Editor Icon': iconRect ? isOverlapping(sliderRect, iconRect) : false
+      };
+
+      setBlurStates(newBlurStates);
     };
 
-    const observer = new ResizeObserver(checkOverlap);
+    const handleMouseMove = () => {
+      requestAnimationFrame(checkOverlap);
+    };
+
+    const observer = new ResizeObserver(() => {
+      requestAnimationFrame(checkOverlap);
+    });
+
     if (sliderRef.current) {
       observer.observe(sliderRef.current);
+      if (sliderRef.current.parentElement) {
+        observer.observe(sliderRef.current.parentElement);
+      }
     }
 
-    return () => observer.disconnect();
+    window.addEventListener('mousemove', handleMouseMove);
+    
+    // Initial check
+    checkOverlap();
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('mousemove', handleMouseMove);
+      setBlurStates({
+        'Undo/Redo Buttons': false,
+        'Screen Name': false,
+        'Editor Icon': false
+      });
+    };
   }, []);
 
   const handleDownload = async () => {
@@ -222,30 +285,36 @@ export function CodeEditor({ onSwitchToChat, showPreview, onPreviewChange }: Cod
   ];
 
   return (
-    <>
+    <div className="h-full relative">
       <ProcessingOverlay 
         isVisible={isProcessing}
         onCancel={cancelOperation} />
       <Card className="flex h-full flex-col overflow-hidden border-none bg-background/60 backdrop-blur supports-[backdrop-filter]:bg-background/60 relative">
-        <div className="flex items-center justify-between border-b sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+        <div className="flex justify-between items-center w-full relative">
           <div className="flex items-center gap-1 sm:gap-2 py-2 pl-2">
             <div ref={iconRef} className={classNames(
-              "transition-opacity duration-200",
-              isIconVisible ? "opacity-100" : "opacity-0"
+              "transition-all duration-200",
+              blurStates['Editor Icon'] ? "opacity-30 blur-[1px]" : "opacity-100"
             )}>
               <Code2 className="h-5 w-5 md:h-8 md:w-8 text-purple-500 shrink-0" />
             </div>
-            <h2 className="text-lg font-semibold hidden md:block shrink-0">
+            <h2 ref={nameRef} className={classNames(
+              "text-lg font-semibold shrink-0 transition-all duration-200",
+              blurStates['Screen Name'] ? "opacity-30 blur-[1px]" : "opacity-100"
+            )}>
               {showPreview ? 'Preview' : 'Editor'}
             </h2>
-            {!showPreview && window.innerWidth >= 640 && (
-              <div className="flex gap-0.5 shrink-0">
+            {!showPreview && (
+              <div ref={buttonsRef} className={classNames(
+                "flex gap-0.5 shrink-0 transition-all duration-200 w-fit",
+                blurStates['Undo/Redo Buttons'] ? "opacity-30 blur-[1px]" : "opacity-100"
+              )}>
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={handleUndo}
                   title="Undo (Ctrl+Z)"
-                  className="hover:bg-purple-500/80"
+                  className="hover:bg-purple-500/80 p-1"
                 >
                   <Undo2 className="h-3.5 w-3.5 md:h-4 md:w-4" />
                 </Button>
@@ -254,50 +323,20 @@ export function CodeEditor({ onSwitchToChat, showPreview, onPreviewChange }: Cod
                   size="sm"
                   onClick={handleRedo}
                   title="Redo (Ctrl+Y)"
-                  className="hover:bg-purple-500/80"
+                  className="hover:bg-purple-500/80 p-1"
                 >
                   <Redo2 className="h-3.5 w-3.5 md:h-4 md:w-4" />
                 </Button>
               </div>
             )}
           </div>
-          <div ref={sliderRef} className="sticky right-0 flex-grow flex justify-end">
-            <ButtonSlider 
+          <div ref={sliderRef} className="absolute right-0 flex items-center gap-2 transition-all duration-200">
+            <ButtonSlider
+              className="w-fit"
               options={buttonOptions} 
-              className="min-w-0 pr-1" 
             />
           </div>
-<div ref={iconRef} className={classNames(
-  "transition-opacity duration-200",
-  isIconVisible ? "opacity-100" : "opacity-0"
-)}>
-  <Code2 className="h-5 w-5 md:h-8 md:w-8 text-purple-500 shrink-0" />
-</div><div ref={iconRef} className={classNames(
-  "transition-opacity duration-200",
-  isIconVisible ? "opacity-100" : "opacity-0"
-)}>
-  <Code2 className="h-5 w-5 md:h-8 md:w-8 text-purple-500 shrink-0" />
-</div><div ref={iconRef} className={classNames(
-  "transition-opacity duration-200",
-  isIconVisible ? "opacity-100" : "opacity-0"
-)}>
-  <Code2 className="h-5 w-5 md:h-8 md:w-8 text-purple-500 shrink-0" />
-</div><div ref={iconRef} className={classNames(
-  "transition-opacity duration-200",
-  isIconVisible ? "opacity-100" : "opacity-0"
-)}>
-  <Code2 className="h-5 w-5 md:h-8 md:w-8 text-purple-500 shrink-0" />
-</div><div ref={iconRef} className={classNames(
-  "transition-opacity duration-200",
-  isIconVisible ? "opacity-100" : "opacity-0"
-)}>
-  <Code2 className="h-5 w-5 md:h-8 md:w-8 text-purple-500 shrink-0" />
-</div><div ref={iconRef} className={classNames(
-  "transition-opacity duration-200",
-  isIconVisible ? "opacity-100" : "opacity-0"
-)}>
-  <Code2 className="h-5 w-5 md:h-8 md:w-8 text-purple-500 shrink-0" />
-</div>        </div>
+        </div>
 
         <div className="relative flex-1 overflow-hidden">
           {showPreview ? (
@@ -335,6 +374,6 @@ export function CodeEditor({ onSwitchToChat, showPreview, onPreviewChange }: Cod
           )}
         </div>
       </Card>
-    </>
+    </div>
   );
 }

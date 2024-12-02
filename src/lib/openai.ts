@@ -1,5 +1,10 @@
 import OpenAI from 'openai';
+import { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
 import { showToast } from '@/lib/toast';
+import { aiCache } from '@/lib/aiCache';
+
+// Create a singleton AbortController instance
+let currentController: AbortController | null = null;
 
 function getOpenAIClient() {
   const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
@@ -16,60 +21,72 @@ function getOpenAIClient() {
 
 const openai = getOpenAIClient();
 
-const systemPrompt = `You are an expert web developer specializing in creating modern, interactive web applications. Your responses should strictly follow these guidelines:
+const systemPrompt = `You are a specialized web development AI focused on generating single-file web applications. Follow these instructions precisely:
 
-Output Format:
-- Provide complete, self-contained HTML files only
-- Include all CSS and JavaScript within the file
-- Never include code block markers or explanations
-- Return only the actual code
+RESPONSE FORMAT:
+1. Generate ONLY a complete, self-contained HTML file
+2. Include ALL CSS in a single <style> tag
+3. Include ALL JavaScript in a single <script> tag
+4. NO markdown code blocks, NO explanations
+5. ONLY output valid HTML code
 
-Technical Requirements:
-- Use Tailwind CSS v2.2.19 for styling (CDN: https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css)
-- Implement responsive design for all screen sizes
-- Add proper meta tags for SEO and social sharing
-- Include error handling and console logging
-- Ensure cross-browser compatibility
-- Follow web accessibility guidelines
-- Optimize for performance
+CORE REQUIREMENTS:
+1. Structure:
+   - Valid HTML5 DOCTYPE and meta tags
+   - Viewport and charset declarations
+   - SEO meta tags
+   - Single file structure
 
-Design Guidelines:
-- Create modern, professional UI designs
-- Use a purple-based glassmorphic theme
-- Implement smooth animations and transitions
-- Ensure visual hierarchy and proper spacing
-- Use consistent color schemes and typography
-- Add hover and focus states for interactive elements
-- Include loading states and feedback for user actions
+2. Dependencies (CDN only):
+   - Tailwind CSS 2.2.19: https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css
+   - NO other external CSS/JS files
 
-Image Requirements:
-- Use high-quality Unsplash images
-- Include proper alt text for accessibility
-- Optimize images for performance
-- Use responsive image techniques
-- Implement lazy loading where appropriate
+3. Performance Optimization:
+   - Minified inline CSS/JS
+   - Efficient DOM operations
+   - Event delegation
+   - Debounced event handlers
+   - Lazy loading for images
 
-Meta Tags:
-- Include viewport meta tag
-- Add proper Open Graph tags for social sharing
-- Include Twitter Card meta tags
-- Add theme-color meta tag
-- Include proper favicon and app icons
-- Add web app manifest for PWA support
+4. Error Handling:
+   - Try-catch blocks
+   - Fallback states
+   - Console error logging
+   - User feedback messages
 
-Best Practices:
-- Write semantic HTML
-- Use proper ARIA attributes
-- Implement proper form validation
-- Add keyboard navigation support
-- Include proper error states
-- Use meaningful variable and function names
-- Add code comments for complex logic
-- Implement proper event handling
-- Use ES6+ JavaScript features
-- Add proper security measures
+DESIGN SYSTEM:
+1. Theme:
+   - Purple-based glassmorphic UI
+   - Consistent color palette
+   - Modern, clean aesthetics
 
-Remember: Return only the complete, working code without any explanations or markdown formatting.`;
+2. Components:
+   - Responsive layout
+   - Interactive elements
+   - Loading states
+   - Smooth transitions
+   - Proper spacing
+
+3. Accessibility:
+   - ARIA labels
+   - Semantic HTML
+   - Keyboard navigation
+   - Focus management
+   - Color contrast
+
+CONSTRAINTS:
+1. Single file output
+2. No external resources except Tailwind
+3. Cross-browser compatibility
+4. Mobile-first design
+5. Performance-optimized code
+
+QUALITY CHECKS:
+1. Valid HTML structure
+2. Working interactivity
+3. Error-free console
+4. Responsive layout
+5. Accessible interface`;
 
 function trimCodeDelimiters(code: string): string {
   return code
@@ -81,139 +98,232 @@ function trimCodeDelimiters(code: string): string {
     .trim();
 }
 
-async function handleOpenAIError(error: any): Promise<never> {
-  let errorMessage = 'Failed to generate code. Please try again.';
-
-  try {
-    if (error?.name === 'AbortError') {
-      throw new Error('Generation cancelled');
-    }
-
-    // Network or connection errors
-    if (!error?.response) {
-      throw new Error('Network error. Please check your connection.');
-    }
-
-    // OpenAI API errors
-    const status = error?.response?.status;
-    const errorData = error?.response?.data;
-
-    if (status === 401) {
-      throw new Error('Invalid API key. Please check your OpenAI API key.');
-    }
-
-    if (status === 429) {
-      const retryAfter = error?.response?.headers?.['retry-after'];
-      throw new Error(
-        retryAfter
-          ? `Rate limit exceeded. Please try again in ${retryAfter} seconds.`
-          : 'Rate limit exceeded. Please try again later.'
-      );
-    }
-
-    if (status === 500) {
-      throw new Error('OpenAI service error. Please try again later.');
-    }
-
-    if (status === 503) {
-      throw new Error('OpenAI service is temporarily unavailable. Please try again later.');
-    }
-
-    // Handle specific OpenAI error types
-    if (errorData?.error?.type === 'invalid_request_error') {
-      errorMessage = 'Invalid request. Please try a different prompt.';
-    } else if (errorData?.error?.type === 'context_length_exceeded') {
-      errorMessage = 'The prompt is too long. Please try a shorter prompt.';
-    } else if (errorData?.error?.message) {
-      errorMessage = errorData.error.message;
-    }
-
-    throw new Error(errorMessage);
-  } catch (e: any) {
-    console.error('OpenAI API Error:', {
-      name: error?.name,
-      status: error?.response?.status,
-      data: error?.response?.data,
-      message: e.message,
+export function cancelOpenAIRequest() {
+  if (currentController) {
+    currentController.abort();
+    currentController = null;
+    showToast.system({
+      title: 'Cancelled',
+      description: 'Generation cancelled successfully',
+      duration: 2000
     });
-    throw new Error(e.message || errorMessage);
   }
+}
+
+// Utility function to combine multiple abort signals into one
+function createCombinedSignal(signals: (AbortSignal | undefined)[]): AbortSignal {
+  const controller = new AbortController();
+  
+  // Filter out undefined signals
+  const validSignals = signals.filter((signal): signal is AbortSignal => signal !== undefined);
+  
+  if (validSignals.length === 0) {
+    return controller.signal;
+  }
+
+  // Check if any signal is already aborted
+  if (validSignals.some(signal => signal.aborted)) {
+    controller.abort();
+    return controller.signal;
+  }
+
+  // Listen to all signals
+  validSignals.forEach(signal => {
+    signal.addEventListener('abort', () => controller.abort(), { once: true });
+  });
+
+  return controller.signal;
 }
 
 export async function generateCode(
   prompt: string,
-  messages: Array<{ role: string; content: string }> = [],
+  messages: ChatCompletionMessageParam[] = [],
   signal?: AbortSignal
 ): Promise<string> {
-  if (!import.meta.env.VITE_OPENAI_API_KEY) {
-    throw new Error('OpenAI API key is not configured');
-  }
-
   try {
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4-turbo-preview',
-      temperature: 0.7,
-      max_tokens: 4096,
-      stream: false,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        ...messages,
-        { role: 'user', content: prompt },
-      ],
-    }, { 
-      abortSignal: signal
+    // Check cache first
+    const fullMessages = [
+      { role: 'system', content: systemPrompt } as ChatCompletionMessageParam,
+      ...messages,
+      { role: 'user', content: prompt } as ChatCompletionMessageParam
+    ];
+    const cachedResponse = await aiCache.get(fullMessages);
+    if (cachedResponse) {
+      return trimCodeDelimiters(cachedResponse);
+    }
+
+    // Cancel any existing request
+    if (currentController) {
+      currentController.abort();
+    }
+
+    // Create new controller for this request
+    currentController = new AbortController();
+
+    // Combine the external signal with our internal controller
+    const combinedSignal = createCombinedSignal([signal]);
+
+    if (!import.meta.env.VITE_OPENAI_API_KEY) {
+      showToast.error({
+        title: 'Configuration Error',
+        description: 'OpenAI API key is not configured',
+        duration: 5000
+      });
+      throw new Error('OpenAI API key is not configured');
+    }
+
+    showToast.system({
+      title: 'Generating Code',
+      description: 'Please wait while we generate your code...',
+      duration: 3000
     });
 
-    const code = response.choices[0]?.message?.content;
-    if (!code) {
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      temperature: 0.7,
+      max_tokens: 4096,
+      messages: fullMessages,
+      stream: true
+    }, { signal: combinedSignal });
+
+    let fullResponse = '';
+    for await (const chunk of completion) {
+      const content = chunk.choices[0]?.delta?.content || '';
+      fullResponse += content;
+    }
+
+    if (!fullResponse) {
       throw new Error('No response received from AI. Please try again.');
     }
 
-    return trimCodeDelimiters(code);
+    const trimmedCode = trimCodeDelimiters(fullResponse);
+    // Cache the successful response with full messages for context
+    aiCache.set(fullMessages, fullResponse);
+    
+    return trimmedCode;
   } catch (error: any) {
-    return handleOpenAIError(error);
+    // Clear the controller on error
+    currentController = null;
+    if (error.name === 'AbortError') {
+      showToast.error({
+        title: 'Cancelled',
+        description: 'Request cancelled',
+        duration: 2000
+      });
+      throw error;
+    }
+    
+    if (error.status === 429) {
+      showToast.error({
+        title: 'Rate Limit',
+        description: 'Rate limit exceeded. Please try again in a moment.',
+        duration: 5000
+      });
+    } else {
+      showToast.error({
+        title: 'Error',
+        description: 'Failed to get code suggestions. Please try again.',
+        duration: 5000
+      });
+    }
+    
+    throw error;
+  } finally {
+    if (currentController) {
+      currentController = null;
+    }
   }
 }
 
 export async function getCodeSuggestions(
-  code: string,
-  prompt: string,
-  messages: Array<{ role: string; content: string }> = [],
+  messages: ChatCompletionMessageParam[],
   signal?: AbortSignal
 ): Promise<string> {
-  if (!import.meta.env.VITE_OPENAI_API_KEY) {
-    throw new Error('OpenAI API key is not configured');
-  }
-
   try {
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4-turbo-preview',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        ...messages,
-        {
-          role: 'user',
-          content: `Current code:\n${code}\n\nPrompt: ${prompt}`,
-        },
-      ],
-      temperature: 0.7,
-      max_tokens: 4096,
-      stream: false,
-    }, { 
-      signal,
-      abort: (controller) => {
-        controller.abort();
-        throw new Error('Generation cancelled');
-      }
+    // Check cache first
+    const cachedResponse = await aiCache.get(messages);
+    if (cachedResponse) {
+      return cachedResponse;
+    }
+
+    // Cancel any existing request
+    if (currentController) {
+      currentController.abort();
+    }
+
+    // Create new controller for this request
+    currentController = new AbortController();
+
+    // Combine the external signal with our internal controller
+    const combinedSignal = createCombinedSignal([signal]);
+
+    if (!import.meta.env.VITE_OPENAI_API_KEY) {
+      showToast.error({
+        title: 'Configuration Error',
+        description: 'OpenAI API key is not configured',
+        duration: 5000
+      });
+      throw new Error('OpenAI API key is not configured');
+    }
+
+    showToast.system({
+      title: 'Generating Suggestions',
+      description: 'Please wait while we analyze your code...',
+      duration: 3000
     });
 
-    const suggestions = response.choices[0]?.message?.content;
-    if (!suggestions) {
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages,
+      temperature: 0.7,
+      max_tokens: 4096,
+      stream: true
+    }, { signal: combinedSignal });
+
+    let fullResponse = '';
+    for await (const chunk of completion) {
+      const content = chunk.choices[0]?.delta?.content || '';
+      fullResponse += content;
+    }
+
+    if (!fullResponse) {
       throw new Error('No suggestions received from AI. Please try again.');
     }
 
-    return trimCodeDelimiters(suggestions);
+    // Cache the successful response
+    aiCache.set(messages, fullResponse);
+    
+    return fullResponse;
   } catch (error: any) {
-    return handleOpenAIError(error);
+    // Clear the controller on error
+    currentController = null;
+    if (error.name === 'AbortError') {
+      showToast.error({
+        title: 'Cancelled',
+        description: 'Request cancelled',
+        duration: 2000
+      });
+      throw error;
+    }
+    
+    if (error.status === 429) {
+      showToast.error({
+        title: 'Rate Limit',
+        description: 'Rate limit exceeded. Please try again in a moment.',
+        duration: 5000
+      });
+    } else {
+      showToast.error({
+        title: 'Error',
+        description: 'Failed to get code suggestions. Please try again.',
+        duration: 5000
+      });
+    }
+    
+    throw error;
+  } finally {
+    if (currentController) {
+      currentController = null;
+    }
   }
 }
