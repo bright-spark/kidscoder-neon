@@ -3,13 +3,15 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { showToast } from '@/lib/toast';
-import { ChevronRight, Code2, Send, Loader2, Trash2, Wand2 } from 'lucide-react';
+import { ChevronRight, Code2, Send, Loader2, Trash2, Wand2, XCircle } from 'lucide-react';
 import { useChat } from '@/contexts/ChatContext';
 import { useEditor } from '@/contexts/EditorContext';
+import { useSession } from '@/contexts/SessionContext';
 import { generateCode } from '@/lib/ai-provider';
 import { ButtonSlider } from './ButtonSlider';
 import { ProcessingOverlay } from './ProcessingOverlay';
 import { cn } from '@/lib/utils';
+import { Message, MessageRole } from '@/lib/types';
 import styles from './ChatPanel.module.css';
 
 function formatChatMessage(content: string): string {
@@ -35,12 +37,11 @@ export function ChatPanel({ onSwitchToEditor, onProcessingStart, onProcessingEnd
   const [abortController, setAbortController] = useState<AbortController | null>(null);
   const [isCancelled, setIsCancelled] = useState(false);
   const [unusedStarters, setUnusedStarters] = useState<string[]>([]);
-  const [elapsedTime, setElapsedTime] = useState(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const { messages, addMessage, clearMessages, clearLastMessage, contextId } = useChat();
-  const { setCode, promptCount } = useEditor();
+  const { setCode, code } = useEditor();
+  const { updateLastActive, addCodeHistory } = useSession();
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [firstPromptSent, setFirstPromptSent] = useState(false);
 
   const resetState = () => {
     setIsLoading(false);
@@ -67,18 +68,13 @@ export function ChatPanel({ onSwitchToEditor, onProcessingStart, onProcessingEnd
     setAbortController(controller);
     setIsLoading(true);
     setHasSubmitted(true);
-    setElapsedTime(0);
-    
-    // Start timer
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-    }
-    timerRef.current = setInterval(() => {
-      setElapsedTime(prev => prev + 1);
-    }, 1000);
+    updateLastActive();
 
     try {
-      const userMessage = { role: 'user', content: prompt };
+      const userMessage: Message = {
+        role: 'user' as MessageRole,
+        content: prompt
+      };
       
       addMessage(userMessage);
       
@@ -88,14 +84,15 @@ export function ChatPanel({ onSwitchToEditor, onProcessingStart, onProcessingEnd
       const response = await generateCode(prompt, messages, controller.signal);
       
       if (response) {
-        // Only store the message content in chat history
         const messageContent = 'Generated code is ready in the editor';
-        addMessage({ role: 'assistant', content: messageContent });
+        const assistantMessage: Message = {
+          role: 'assistant' as MessageRole,
+          content: messageContent
+        };
         
-        // Store the actual code in editor state
-        // Only store the generated code in editor state, not in chat history
-        const codeOnly = response.replace(/^.*?<!DOCTYPE/m, '<!DOCTYPE');
+        addMessage(assistantMessage);
         setCode(response);
+        addCodeHistory(response, 'generate');
         setPrompt('');
         showToast.system({
           title: 'Code Generated',
@@ -128,6 +125,116 @@ export function ChatPanel({ onSwitchToEditor, onProcessingStart, onProcessingEnd
       setIsLoading(false);
       setAbortController(null);
       onProcessingEnd();
+    }
+  };
+
+  const handleDebug = async () => {
+    if (isLoading) return;
+
+    const controller = new AbortController();
+    setAbortController(controller);
+    setIsLoading(true);
+    setHasSubmitted(true);
+    updateLastActive();
+
+    onProcessingStart(controller);
+
+    try {
+      const debugPrompt = "Debug this code and fix any issues: " + code;
+      const userMessage: Message = {
+        role: 'user' as MessageRole,
+        content: debugPrompt
+      };
+      
+      addMessage(userMessage);
+      
+      const newMessageIndex = messages.length;
+      setProcessingMessageIndex(newMessageIndex);
+      
+      const response = await generateCode(debugPrompt, messages, controller.signal, code);
+      
+      if (response) {
+        const messageContent = 'Debugged code is ready in the editor';
+        const assistantMessage: Message = {
+          role: 'assistant' as MessageRole,
+          content: messageContent
+        };
+        
+        addMessage(assistantMessage);
+        setCode(response);
+        addCodeHistory(response, 'debug');
+        showToast.system({
+          title: 'Code Debugged',
+          description: 'Your code has been debugged and is ready in the editor.',
+          duration: 2000
+        });
+        scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
+        onSwitchToEditor();
+      }
+    } catch (error: any) {
+      console.error('Debug error:', error);
+      showToast.error({
+        title: 'Error',
+        description: error.message || 'Failed to debug code. Please try again.',
+        duration: 2000
+      });
+    } finally {
+      resetState();
+    }
+  };
+
+  const handleImprove = async () => {
+    if (isLoading) return;
+
+    const controller = new AbortController();
+    setAbortController(controller);
+    setIsLoading(true);
+    setHasSubmitted(true);
+    updateLastActive();
+
+    onProcessingStart(controller);
+
+    try {
+      const improvePrompt = "Improve this code by making it more efficient and adding educational comments: " + code;
+      const userMessage: Message = {
+        role: 'user' as MessageRole,
+        content: improvePrompt
+      };
+      
+      addMessage(userMessage);
+      
+      const newMessageIndex = messages.length;
+      setProcessingMessageIndex(newMessageIndex);
+      
+      const response = await generateCode(improvePrompt, messages, controller.signal, code);
+      
+      if (response) {
+        const messageContent = 'Improved code is ready in the editor';
+        const assistantMessage: Message = {
+          role: 'assistant' as MessageRole,
+          content: messageContent
+        };
+        
+        addMessage(assistantMessage);
+        setCode(response);
+        addCodeHistory(response, 'improve');
+        showToast.system({
+          title: 'Code Improved',
+          description: 'Your code has been improved and is ready in the editor.',
+          duration: 2000
+        });
+        scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
+        onSwitchToEditor();
+      }
+    } catch (error: any) {
+      console.error('Improve error:', error);
+      showToast.error({
+        title: 'Error',
+        description: error.message || 'Failed to improve code. Please try again.',
+        duration: 2000
+      });
+    } finally {
+      resetState();
     }
   };
 
@@ -211,6 +318,20 @@ export function ChatPanel({ onSwitchToEditor, onProcessingStart, onProcessingEnd
         icon: <Trash2 className="mr-2 h-4 w-4" />,
         label: 'Clear',
         onClick: handleClear,
+        intent: 'debug' as const,
+        disabled: isLoading,
+      },
+      {
+        icon: <Loader2 className="mr-2 h-4 w-4" />,
+        label: 'Debug',
+        onClick: handleDebug,
+        intent: 'debug' as const,
+        disabled: isLoading,
+      },
+      {
+        icon: <Loader2 className="mr-2 h-4 w-4" />,
+        label: 'Improve',
+        onClick: handleImprove,
         intent: 'debug' as const,
         disabled: isLoading,
       }
