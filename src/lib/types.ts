@@ -20,15 +20,11 @@ export interface EditorContext {
   code: string;
   setCode: (code: string) => void;
   isProcessing: boolean;
-  isImproving: boolean;
-  isDebugging: boolean;
-  currentOperation: 'debug' | 'improve' | 'prompt';
   promptCount: number;
+  currentOperation: 'prompt';
   handleClear: () => void;
   handleGenerate: (prompt: string) => Promise<void>;
-  handleShare: () => Promise<void>;
-  handleDebug: () => Promise<void>;
-  handleImprove: () => Promise<void>;
+  handleShare?: () => void;
   cancelOperation: () => void;
   language: string;
   setLanguage: (language: string) => void;
@@ -60,8 +56,10 @@ export interface SessionContext {
     code: string;
     type: 'generate' | 'debug' | 'improve';
   }>;
+  messages: Message[];
   updateLastActive: () => void;
   setProjectName: (name: string) => void;
   addCodeHistory: (code: string, type: 'generate' | 'debug' | 'improve') => void;
   clearSession: () => void;
+  updateTotalCharacters: (count: number) => void;
 }

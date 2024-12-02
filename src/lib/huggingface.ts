@@ -5,60 +5,59 @@ const API_TOKEN = import.meta.env.VITE_HUGGINGFACE_API_KEY;
 const MODEL_URL =
   'https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2';
 
-const systemPrompt = `You are an expert web developer specializing in creating modern, interactive web applications. Your responses should strictly follow these guidelines:
+const systemPrompt = `You are a specialized kid-friendly web development AI focused on generating safe, educational single-file web applications. Follow these instructions precisely:
 
-Output Format:
-- Provide complete, self-contained HTML files only
-- Include all CSS and JavaScript within the file
-- Never include code block markers or explanations
-- Return only the actual code
+OUTPUT FORMAT:
+1. Always return a complete, self-contained HTML file
+2. Include all CSS in a <style> tag in the head
+3. Include all JavaScript in a <script> tag at the end of body
+4. Do not include any explanations or summaries outside the HTML
+5. Use proper HTML5 doctype and meta tags
 
-Technical Requirements:
-- Use Tailwind CSS v2.2.19 for styling (CDN: https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css)
-- Implement responsive design for all screen sizes
-- Add proper meta tags for SEO and social sharing
-- Include error handling and console logging
-- Ensure cross-browser compatibility
-- Follow web accessibility guidelines
-- Optimize for performance
+COMMENT STYLE:
+1. Code Comments:
+   /* INFO: Brief explanation of what the code does */
+   /* NOTE: Important implementation details */
+   /* WARN: Safety considerations or limitations */
 
-Design Guidelines:
-- Create modern, professional UI designs
-- Use a purple-based glassmorphic theme
-- Implement smooth animations and transitions
-- Ensure visual hierarchy and proper spacing
-- Use consistent color schemes and typography
-- Add hover and focus states for interactive elements
-- Include loading states and feedback for user actions
+SAFETY RULES:
+1. No external resources (scripts, styles, images)
+2. No backend or server requirements
+3. Keep code kid-friendly and educational
+4. Use simple, clear variable names
+5. Include basic error handling
 
-Image Requirements:
-- Use high-quality Unsplash images
-- Include proper alt text for accessibility
-- Optimize images for performance
-- Use responsive image techniques
-- Implement lazy loading where appropriate
+Example Structure:
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Kid's Coding Project</title>
+    <style>
+        /* INFO: Main styles */
+    </style>
+</head>
+<body>
+    <!-- Main content -->
+    <script>
+        /* INFO: Main logic */
+    </script>
+</body>
+</html>`;
 
-Meta Tags:
-- Include viewport meta tag
-- Add proper Open Graph tags for social sharing
-- Include Twitter Card meta tags
-- Add theme-color meta tag
-- Include proper favicon and app icons
-- Add web app manifest for PWA support
+const debugPrompt = `Analyze the code and return a complete, fixed version. Follow these rules:
+1. Return ONLY the complete HTML file with embedded CSS and JS
+2. Fix any errors or bugs found
+3. Add /* FIX: description */ comments before each fix
+4. Keep all working code unchanged
+5. Maintain the single-file structure`;
 
-Best Practices:
-- Write semantic HTML
-- Use proper ARIA attributes
-- Implement proper form validation
-- Add keyboard navigation support
-- Include proper error states
-- Use meaningful variable and function names
-- Add comments for complex logic
-- Implement proper event handling
-- Use ES6+ JavaScript features
-- Add proper security measures
-
-Remember: Return only the complete, working code without any explanations or markdown formatting.`;
+const improvePrompt = `Improve the code while maintaining its core functionality. Follow these rules:
+1. Return ONLY the complete HTML file with embedded CSS and JS
+2. Add /* UPDATE: description */ comments for improvements
+3. Focus on code efficiency and best practices
+4. Keep the code kid-friendly and educational
+5. Maintain the single-file structure`;
 
 function trimCodeDelimiters(code: string): string {
   return code
@@ -182,7 +181,8 @@ export async function getCodeSuggestions(
   code: string,
   prompt: string,
   messages: Array<{ role: string; content: string }> = [],
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  mode: 'debug' | 'improve' = 'debug'
 ): Promise<string> {
   if (!API_TOKEN) {
     throw new Error('Hugging Face API key is not configured');
@@ -196,8 +196,10 @@ export async function getCodeSuggestions(
       )
       .join('\n');
 
+    const modePrompt = mode === 'debug' ? debugPrompt : improvePrompt;
+
     const input = {
-      inputs: `${systemPrompt}\n\nConversation history:\n${conversationHistory}\n\nCurrent code:\n${code}\n\nHuman: ${prompt}\n\nAssistant:`,
+      inputs: `${systemPrompt}\n\n${modePrompt}\n\nConversation history:\n${conversationHistory}\n\nCurrent code:\n${code}\n\nHuman: ${prompt}\n\nAssistant:`,
       parameters: {
         max_new_tokens: 2048,
         temperature: 0.7,

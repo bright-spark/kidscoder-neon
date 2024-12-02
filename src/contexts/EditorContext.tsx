@@ -4,18 +4,18 @@ import { supabase } from '@/lib/supabase';
 import { useChat } from '@/contexts/ChatContext';
 import { getCodeSuggestions } from '@/lib/ai-provider';
 import type { EditorContext, Message } from '@/lib/types';
+import { useSession } from '@/contexts/SessionContext';
 
 const EditorContext = createContext<EditorContext | undefined>(undefined);
 
 export function EditorProvider({ children }: { children: React.ReactNode }) {
   const [code, setCode] = useState('');
-  const [language] = useState('html');
+  const [language, setLanguage] = useState('html');
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isImproving, setIsImproving] = useState(false);
-  const [isDebugging, setIsDebugging] = useState(false);
   const [promptCount, setPromptCount] = useState(0);
-  const [currentOperation, setCurrentOperation] = useState<'debug' | 'improve' | 'prompt'>('prompt');
-  const { messages, addMessage, updateTotalCharacters } = useChat();
+  const [currentOperation, setCurrentOperation] = useState<'prompt'>('prompt');
+  const { addMessage } = useChat();
+  const { messages, updateTotalCharacters } = useSession();
 
   const handleClear = useCallback(() => {
     setCode('');
@@ -31,9 +31,15 @@ export function EditorProvider({ children }: { children: React.ReactNode }) {
     setCurrentOperation('prompt');
 
     try {
-      const response = await getCodeSuggestions([
-        { role: 'user', content: prompt }
-      ], controller.signal);
+      const userMessage: Message = {
+        role: 'user',
+        content: prompt
+      };
+      
+      const response = await getCodeSuggestions(
+        [...messages, userMessage],
+        controller.signal
+      );
       
       if (response) {
         setCode(response);
@@ -42,7 +48,8 @@ export function EditorProvider({ children }: { children: React.ReactNode }) {
         }
 
         const totalChars = response.length;
-        showToast.info({
+        updateTotalCharacters(totalChars);
+        showToast.success({
           title: '✨ Code Generated Successfully',
           description: `Your code is ready with ${totalChars.toLocaleString()} characters. Check it out in the editor!`,
           duration: 3000
@@ -58,7 +65,7 @@ export function EditorProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setIsProcessing(false);
     }
-  }, [isProcessing, addMessage]);
+  }, [isProcessing, addMessage, messages]);
 
   const handleShare = useCallback(async () => {
     if (!code) return;
@@ -95,88 +102,8 @@ export function EditorProvider({ children }: { children: React.ReactNode }) {
     }
   }, [code]);
 
-  const handleDebug = useCallback(async () => {
-    if (isProcessing || !code) return;
-
-    const controller = new AbortController();
-    setPromptCount(prev => prev + 1);
-    setIsProcessing(true);
-    setIsDebugging(true);
-    setCurrentOperation('debug');
-
-    try {
-      const response = await getCodeSuggestions([
-        ...messages,
-        { role: 'user', content: 'Debug this code and explain any issues found:\n\n' + code }
-      ], controller.signal);
-      
-      if (response) {
-        setCode(response);
-        if (addMessage) {
-          addMessage({ role: 'assistant', content: response });
-        }
-        showToast.warning({
-          title: '🔍 Debug Complete',
-          description: 'Code has been analyzed and improved. Check the editor for changes!',
-          duration: 3000
-        });
-      }
-    } catch (error: any) {
-      console.error('Error debugging code:', error);
-      showToast.error({
-        title: '❌ Debug Failed',
-        description: 'Unable to analyze your code. Please try again or make sure your code is valid.',
-        duration: 4000
-      });
-    } finally {
-      setIsDebugging(false);
-      setIsProcessing(false);
-    }
-  }, [isProcessing, code, messages, addMessage]);
-
-  const handleImprove = useCallback(async () => {
-    if (isProcessing || !code) return;
-
-    const controller = new AbortController();
-    setPromptCount(prev => prev + 1);
-    setIsProcessing(true);
-    setIsImproving(true);
-    setCurrentOperation('improve');
-
-    try {
-      const response = await getCodeSuggestions([
-        ...messages,
-        { role: 'user', content: 'Improve this code by making it more efficient and adding helpful comments:\n\n' + code }
-      ], controller.signal);
-      
-      if (response) {
-        setCode(response);
-        if (addMessage) {
-          addMessage({ role: 'assistant', content: response });
-        }
-        showToast.success({
-          title: '✨ Code Improved',
-          description: 'Your code has been enhanced with better practices and comments!',
-          duration: 3000
-        });
-      }
-    } catch (error: any) {
-      console.error('Error improving code:', error);
-      showToast.error({
-        title: '❌ Improvement Failed',
-        description: 'Unable to improve your code. Please try again or check if the code is valid.',
-        duration: 4000
-      });
-    } finally {
-      setIsImproving(false);
-      setIsProcessing(false);
-    }
-  }, [isProcessing, code, messages, addMessage]);
-
   const cancelOperation = useCallback(() => {
     setIsProcessing(false);
-    setIsImproving(false);
-    setIsDebugging(false);
   }, []);
 
   return (
@@ -185,14 +112,14 @@ export function EditorProvider({ children }: { children: React.ReactNode }) {
         code,
         setCode,
         isProcessing,
-        isImproving,
-        isDebugging,
-        currentOperation,
         promptCount,
+        currentOperation,
         handleClear,
         handleGenerate,
-        handleDebug,
-        handleImprove,
+        handleShare,
+        cancelOperation,
+        language,
+        setLanguage,
       }}
     >
       {children}

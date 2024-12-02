@@ -33,6 +33,7 @@ import { CodeEditor } from './CodeEditor';
 import { CodeSandbox } from './CodeSandbox';
 import { ProcessingOverlay } from './ProcessingOverlay';
 import { cn } from '@/lib/utils';
+import { getCodeSuggestions } from '@/lib/openai';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 
@@ -40,9 +41,10 @@ export function Layout() {
   const [activePanel, setActivePanel] = useState('chat');
   const [isProcessing, setIsProcessing] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [currentOperation, setCurrentOperation] = useState<'prompt' | 'debug' | 'improve'>('prompt');
   const { theme, setTheme } = useTheme();
   const { messages, clearMessages } = useChat();
-  const { code, setCode, handleDebug, handleImprove, cancelOperation } = useEditor();
+  const { code, setCode, cancelOperation } = useEditor();
   const { toast } = useToast();
   const [isDownloading, setIsDownloading] = useState(false);
 
@@ -117,7 +119,7 @@ export function Layout() {
           onClick: () => setActivePanel('editor'),
           active: activePanel === 'editor',
           intent: 'primary' as const,
-          disabled: !hasContent
+          disabled: !hasContent || isProcessing
         }
       ]
     },
@@ -133,25 +135,25 @@ export function Layout() {
           disabled: activePanel !== 'editor' || !code
         },
         {
-          icon: isDownloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />,
-          label: 'Download',
-          onClick: handleDownload,
-          intent: 'success' as const,
-          disabled: activePanel !== 'editor' || !code || isDownloading
-        },
-        {
           icon: <Bug className="h-4 w-4" />,
           label: 'Debug',
-          onClick: () => handleDebug(),
+          onClick: () => {},
           intent: 'secondary' as const,
           disabled: activePanel !== 'editor' || !code
         },
         {
           icon: <Wand2 className="h-4 w-4" />,
           label: 'Improve',
-          onClick: () => handleImprove(),
+          onClick: () => {},
           intent: 'secondary' as const,
           disabled: activePanel !== 'editor' || !code
+        },
+        {
+          icon: isDownloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />,
+          label: 'Download',
+          onClick: handleDownload,
+          intent: 'success' as const,
+          disabled: activePanel !== 'editor' || !code || isDownloading
         }
       ]
     },
@@ -192,28 +194,45 @@ export function Layout() {
           label: 'Clear All',
           onClick: handleClear,
           intent: 'danger' as const,
-          disabled: !hasContent
+          disabled: !hasContent || isProcessing,
+          active: activePanel === 'clear'
         }
       ]
     }
   ];
 
-  const handleProcessingStart = () => {
+  const handleProcessingStart = (controller: AbortController) => {
     setIsProcessing(true);
+    setCurrentOperation('prompt');
+
+    getCodeSuggestions([], controller.signal)
+      .then(response => {
+        // Handle the response
+        console.log(response);
+      })
+      .catch(error => {
+        if (error.name === 'AbortError') {
+          console.log('Request aborted');
+        } else {
+          console.error('Error:', error);
+        }
+      });
   };
 
   const handleProcessingEnd = () => {
     setIsProcessing(false);
+    setCurrentOperation('prompt');
   };
 
   const handleCancel = () => {
     cancelOperation();
     setIsProcessing(false);
+    setCurrentOperation('prompt');
   };
 
   return (
     <div className="flex h-screen w-screen flex-col bg-gradient-to-br from-purple-500/20 via-purple-500/10 to-background">
-      <ProcessingOverlay isVisible={isProcessing} onCancel={handleCancel} />
+      <ProcessingOverlay isVisible={isProcessing} onCancel={handleCancel} operation={currentOperation} />
 
       {/* Mobile Navigation */}
       <div className="flex h-14 items-center justify-between border-b bg-background/60 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60 md:hidden">

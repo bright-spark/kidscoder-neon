@@ -88,7 +88,7 @@ export const CodeSandbox: React.FC<CodeSandboxProps> = ({
 
   useEffect(() => {
     refreshPreview();
-  }, [code]);
+  }, [code, refreshPreview]);
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {

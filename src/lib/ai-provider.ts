@@ -38,4 +38,16 @@ function validateEnvironment() {
 const { provider } = validateEnvironment();
 
 export const generateCode = provider === 'huggingface' ? huggingFaceGenerate : openAIGenerate;
-export const getCodeSuggestions = provider === 'huggingface' ? huggingFaceSuggestions : openAISuggestions;
+
+// Create a unified wrapper for getCodeSuggestions
+export async function getCodeSuggestions(
+  messages: Array<{ role: string; content: string }>,
+  signal?: AbortSignal
+): Promise<string> {
+  if (provider === 'huggingface') {
+    const lastMessage = messages[messages.length - 1];
+    return huggingFaceSuggestions(lastMessage.content, '', messages, signal);
+  } else {
+    return openAISuggestions(messages as any, signal);
+  }
+}
