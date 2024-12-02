@@ -1,0 +1,133 @@
+.card {
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+  overflow: hidden;
+  border: none;
+  background-color: rgba(var(--background), 0.6);
+  backdrop-filter: blur(8px);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom-width: 1px;
+  padding: 0.5rem;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background-color: rgba(var(--background), 0.95);
+  backdrop-filter: blur(8px);
+}
+
+.chatContainer {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem;
+  gap: 1rem;
+  display: flex;
+  flex-direction: column;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.chatContainer::-webkit-scrollbar {
+  display: none;
+}
+
+.footer {
+  border-top-width: 1px;
+  padding: 1rem;
+  background-color: rgba(var(--background), 0.4);
+  backdrop-filter: blur(8px);
+}
+
+.chatInput {
+  min-height: 80px;
+  background-color: rgba(168, 85, 247, 0.15);
+  backdrop-filter: blur(12px);
+  border: 2px solid rgb(168, 85, 247);
+  color: rgb(216, 180, 254);
+  box-shadow: 0 0 15px rgba(147, 51, 234, 0.3);
+  transition: all 0.3s ease;
+  border-radius: 0.5rem;
+}
+
+.chatInput::placeholder {
+  color: rgba(216, 180, 254, 0.5);
+}
+
+.chatInput:focus {
+  outline: none;
+  border-color: rgb(168, 85, 247);
+  box-shadow: 0 0 25px rgba(147, 51, 234, 0.6);
+  background-color: rgba(168, 85, 247, 0.2);
+}
+
+.chatInput:hover:not(:focus) {
+  box-shadow: 0 0 20px rgba(147, 51, 234, 0.4);
+}
+
+.chatInput:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+@keyframes glow {
+  0% {
+    box-shadow: 0 0 15px rgba(168,85,247,0.5);
+    border-color: rgba(168,85,247,0.5);
+  }
+  50% {
+    box-shadow: 0 0 25px rgba(168,85,247,0.8);
+    border-color: rgba(168,85,247,0.8);
+  }
+  100% {
+    box-shadow: 0 0 15px rgba(168,85,247,0.5);
+    border-color: rgba(168,85,247,0.5);
+  }
+}
+
+.userMessage {
+  background-color: rgba(168,85,247,0.3);
+  color: white;
+  backdrop-filter: blur(8px);
+  border: 2px solid rgb(168,85,247);
+  box-shadow: 0 0 15px rgba(168,85,247,0.5);
+  animation: glow 2s ease-in-out infinite;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  margin: 0.5rem 0;
+}
+
+.assistantMessage {
+  background-color: rgba(107, 33, 168, 0.2);
+  color: rgb(233, 213, 255);
+  backdrop-filter: blur(12px);
+  border: 2px solid rgb(107, 33, 168);
+  box-shadow: 0 0 10px rgba(107, 33, 168, 0.3);
+  padding: 1rem;
+  border-radius: 0.5rem;
+  margin: 0.5rem 0;
+  transition: all 0.3s ease;
+}
+
+.assistantMessage:hover {
+  background-color: rgba(107, 33, 168, 0.25);
+  box-shadow: 0 0 15px rgba(107, 33, 168, 0.4);
+}
+
+.assistantMessage code {
+  color: rgb(216, 180, 254);
+  background-color: rgba(88, 28, 135, 0.3);
+  padding: 0.2em 0.4em;
+  border-radius: 0.3em;
+  font-family: monospace;
+}
+
+.message {
+  border-radius: 0.5rem;
+  padding: 0.5rem 1rem;
+  max-width: 80%;
+}

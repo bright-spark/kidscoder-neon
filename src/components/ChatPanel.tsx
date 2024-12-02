@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -8,7 +8,9 @@ import { useChat } from '@/contexts/ChatContext';
 import { useEditor } from '@/contexts/EditorContext';
 import { generateCode } from '@/lib/ai-provider';
 import { ButtonSlider } from './ButtonSlider';
+import { ProcessingOverlay } from './ProcessingOverlay';
 import { cn } from '@/lib/utils';
+import styles from './ChatPanel.module.css';
 
 function formatChatMessage(content: string): string {
   // Remove code blocks and their content
@@ -26,15 +28,17 @@ interface ChatPanelProps {
 }
 
 export function ChatPanel({ onSwitchToEditor, onProcessingStart, onProcessingEnd }: ChatPanelProps) {
-  const [prompt, setPrompt] = useState('');
+  const [prompt, setPrompt] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
   const [hasSubmitted, setHasSubmitted] = useState(false);
   const [processingMessageIndex, setProcessingMessageIndex] = useState<number | null>(null);
   const [abortController, setAbortController] = useState<AbortController | null>(null);
   const [isCancelled, setIsCancelled] = useState(false);
   const [unusedStarters, setUnusedStarters] = useState<string[]>([]);
+  const [elapsedTime, setElapsedTime] = useState(0);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
   const { messages, addMessage, clearMessages, clearLastMessage, contextId } = useChat();
-  const { setCode } = useEditor();
+  const { setCode, promptCount } = useEditor();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [firstPromptSent, setFirstPromptSent] = useState(false);
 
@@ -57,17 +61,25 @@ export function ChatPanel({ onSwitchToEditor, onProcessingStart, onProcessingEnd
   };
 
   const handleSubmit = async () => {
-    if (!prompt.trim() || isLoading) return;
+    if (!prompt?.trim() || isLoading) return;
 
     const controller = new AbortController();
     setAbortController(controller);
-    const userMessage = { role: 'user', content: prompt };
+    setIsLoading(true);
+    setHasSubmitted(true);
+    setElapsedTime(0);
     
+    // Start timer
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+    }
+    timerRef.current = setInterval(() => {
+      setElapsedTime(prev => prev + 1);
+    }, 1000);
+
     try {
-      setIsLoading(true);
-      onProcessingStart(controller);
-      setHasSubmitted(true);
-      setFirstPromptSent(true);
+      const userMessage = { role: 'user', content: prompt };
+      
       addMessage(userMessage);
       
       const newMessageIndex = messages.length;
@@ -85,9 +97,10 @@ export function ChatPanel({ onSwitchToEditor, onProcessingStart, onProcessingEnd
         const codeOnly = response.replace(/^.*?<!DOCTYPE/m, '<!DOCTYPE');
         setCode(response);
         setPrompt('');
-        showToast.success({
+        showToast.system({
           title: 'Code Generated',
           description: 'Your code has been generated and is ready in the editor.',
+          duration: 2000
         });
         scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
         onSwitchToEditor();
@@ -95,21 +108,26 @@ export function ChatPanel({ onSwitchToEditor, onProcessingStart, onProcessingEnd
     } catch (error: any) {
       if (error.name === 'AbortError') {
         handleCancel();
-        showToast.system({
+        showToast.error({
           title: 'Generation cancelled',
           description: 'Code generation was cancelled.',
+          duration: 2000
         });
       } else {
         console.error('Generation error:', error);
         showToast.error({
           title: 'Error',
           description: error.message || 'Failed to generate code. Please try again.',
+          duration: 2000
         });
       }
     } finally {
-      resetState();
-      setProcessingMessageIndex(null);
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+      setIsLoading(false);
       setAbortController(null);
+      onProcessingEnd();
     }
   };
 
@@ -117,146 +135,45 @@ export function ChatPanel({ onSwitchToEditor, onProcessingStart, onProcessingEnd
     if (isLoading || hasSubmitted) return;
     
     const starters = [
-      // Beginner Projects (Ages 4-7)
-      "Create a counting game with colorful numbers and animal sounds",
-      "Build a simple alphabet learning app with pictures",
-      "Make a color matching game with basic shapes",
-      "Design a virtual sticker book with drag-and-drop",
-      "Create a basic pattern matching game with shapes",
-      "Build a simple musical instrument with animal sounds",
-      "Make a digital coloring book with easy tools",
-      "Design a basic number tracing game",
-      "Create a simple memory game with fruits",
-      "Build a virtual fish tank with interactive fish",
+      // Beginner Concepts (Ages 4-7)
+      "Create a simple counting game",
+      "Make a color matching activity",
+      "Build a basic shape sorter",
+      "Design a musical toy",
+      "Make an alphabet explorer",
 
-      // Elementary Projects (Ages 8-10)
-      "Create a multiplication tables game with rewards",
-      "Build a spelling practice app with voice feedback",
-      "Make a basic math quiz with animated characters",
-      "Design a simple typing game with falling words",
-      "Create a basic pixel art editor",
-      "Build a virtual pet care simulator",
-      "Make a simple weather dashboard with animations",
-      "Design a basic maze game with levels",
-      "Create a story generator with choices",
-      "Build a simple music maker with different instruments",
+      // Elementary Concepts (Ages 8-10)
+      "Create a math quiz game",
+      "Build a typing challenge",
+      "Make a memory card game",
+      "Design a simple paint program",
+      "Build a word scramble game",
 
-      // Intermediate Projects (Ages 11-13)
-      "Create a space exploration game with planet facts",
-      "Build a virtual science lab with experiments",
-      "Make a word puzzle game with hints",
-      "Design a basic coding blocks interface",
-      "Create a geography quiz with interactive maps",
-      "Build a simple chat bot with responses",
-      "Make a basic physics simulation",
-      "Design a virtual garden with plant growth",
-      "Create a simple 2D platformer game",
-      "Build a basic animation creator",
-
-      // Advanced Projects (Ages 14-17)
-      "Create a full-featured calculator with scientific functions",
-      "Build a complex rhythm game with scoring",
-      "Make a sophisticated drawing app with layers",
-      "Design a chess game with AI opponent",
-      "Create a virtual chemistry lab with reactions",
-      "Build a music composition tool with multiple tracks",
-      "Make a 3D geometry visualization tool",
-      "Design a complex puzzle game with physics",
-      "Create a virtual robotics simulator",
-      "Build an advanced weather prediction app",
-
-      // Creative Tools
-      "Create a comic strip maker with templates",
-      "Build a digital storytelling app with scenes",
-      "Make a music video creator with effects",
-      "Design a 3D character creator",
-      "Create an emoji designer with expressions",
-      "Build a stop-motion animation studio",
-      "Make a virtual art gallery creator",
-      "Design a fashion design studio",
-      "Create a sound effects mixer",
-      "Build a virtual stage lighting designer",
-
-      // Educational Games
-      "Create an interactive periodic table",
-      "Build a historical timeline explorer",
-      "Make a language learning game with pronunciation",
-      "Design a math problem solver with steps",
-      "Create a grammar correction game",
-      "Build a coding concept visualizer",
-      "Make a geometry proof helper",
-      "Design a virtual biology lab",
-      "Create a physics puzzle game",
-      "Build a chemistry molecule builder",
-
-      // STEM Projects
-      "Create a simple circuit simulator",
-      "Build a basic 3D printer interface",
-      "Make a solar system simulator",
-      "Design a DNA structure explorer",
-      "Create a simple machine simulator",
-      "Build a basic robotics controller",
-      "Make an ecosystem simulator",
-      "Design a weather station dashboard",
-      "Create a basic AI demonstration",
-      "Build a renewable energy simulator",
-
-      // Game Development
-      "Create a snake game with power-ups",
-      "Build a tetris clone with themes",
-      "Make a pong game with special effects",
-      "Design a breakout game with levels",
-      "Create a memory card game with categories",
-      "Build a word search puzzle maker",
-      "Make a simple RPG battle system",
-      "Design a tower defense game",
-      "Create a racing game with tracks",
-      "Build a space shooter with upgrades",
-
-      // Creative Coding
-      "Create a fractal generator with controls",
-      "Build a particle system simulator",
-      "Make a generative art creator",
-      "Design a virtual kaleidoscope",
-      "Create a pattern generator with rules",
-      "Build a creative coding playground",
-      "Make an interactive art installation",
-      "Design a music visualizer",
-      "Create a virtual fireworks display",
-      "Build a creative math art tool",
-
-      // Real-World Applications
-      "Create a basic budget tracker",
-      "Build a homework planner with reminders",
-      "Make a recipe calculator with conversions",
-      "Design a simple blog creator",
-      "Create a basic inventory system",
-      "Build a time management tool",
-      "Make a simple quiz maker",
-      "Design a basic presentation tool",
-      "Create a simple data visualizer",
-      "Build a basic project management app"
+      // Intermediate Concepts (Ages 11-13)
+      "Create a platformer game",
+      "Build a puzzle solver",
+      "Make a space shooter",
+      "Design a music maker",
+      "Build a story generator"
     ];
+
+    // Filter out already used starters
+    const availableStarters = starters.filter(starter => !unusedStarters.includes(starter));
     
-    // Initialize unused starters if empty
-    if (unusedStarters.length === 0) {
-      setUnusedStarters([...starters]);
+    if (availableStarters.length === 0) {
+      // Reset if all starters have been used
+      setUnusedStarters([]);
+      return handleStarter();
     }
 
-    // Get random starter from unused list
-    const randomIndex = Math.floor(Math.random() * unusedStarters.length);
-    const selectedStarter = unusedStarters[randomIndex];
+    // Pick a random starter
+    const randomIndex = Math.floor(Math.random() * availableStarters.length);
+    const selectedStarter = availableStarters[randomIndex];
     
-    // Remove selected starter from unused list
-    const updatedUnusedStarters = [...unusedStarters];
-    updatedUnusedStarters.splice(randomIndex, 1);
-    setUnusedStarters(updatedUnusedStarters);
-
-    // If all starters used, reset the list
-    if (updatedUnusedStarters.length === 0) {
-      setUnusedStarters([...starters]);
-    }
-
+    // Add to used starters
+    setUnusedStarters([...unusedStarters, selectedStarter]);
+    
+    // Set as prompt
     setPrompt(selectedStarter);
   };
 
@@ -268,7 +185,8 @@ export function ChatPanel({ onSwitchToEditor, onProcessingStart, onProcessingEnd
     resetState();
     showToast.success({
       title: 'Chat cleared',
-      description: 'Chat history and context have been cleared.',
+      description: 'Chat history has been cleared.',
+      duration: 2000
     });
   };
 
@@ -299,90 +217,105 @@ export function ChatPanel({ onSwitchToEditor, onProcessingStart, onProcessingEnd
     ] : [])
   ];
 
-  return (
-    <Card className="flex h-full flex-col overflow-hidden border-none bg-background/60 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="flex items-center justify-between border-b p-2 sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-        <div className="flex items-center gap-2">
-          <ChevronRight className="h-8 w-8 text-purple-500" />
-          <h2 className="text-lg font-semibold hidden md:block">Prompt</h2>
-          <ButtonSlider options={buttonOptions} className="absolute right-2 top-1/2 -translate-y-1/2 max-w-[calc(100%-120px)] md:max-w-[70%]" />
-        </div>
-      </div>
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    };
+  }, []);
 
-      <div
-        ref={scrollRef}
-        className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-hide"
-      >
-        {messages.map((message, index) => (
-          <div
-            key={`${contextId}-${index}`}
-            className={`flex ${
-              message.role === 'user' ? 'justify-end' : 'justify-start'
-            }`}
-          >
+  return (
+    <>
+      <Card className={styles.card}>
+        {isLoading && (
+          <ProcessingOverlay
+            isVisible={isLoading}
+            operation="prompt"
+          />
+        )}
+        <div className={styles.header}>
+          <div className="flex items-center gap-2">
+            <ChevronRight className="h-8 w-8 text-purple-500" />
+            <h2 className="text-lg font-semibold hidden md:block">Prompt</h2>
+            <ButtonSlider options={buttonOptions} className="absolute right-2 top-1/2 -translate-y-1/2 max-w-[calc(100%-120px)] md:max-w-[70%]" />
+          </div>
+        </div>
+
+        <div
+          ref={scrollRef}
+          className={styles.chatContainer}
+        >
+          {messages.map((message, index) => (
             <div
-              className={`rounded-lg px-4 py-2 max-w-[80%] ${
-                message.role === 'user'
-                  ? 'bg-purple-500/80 text-white'
-                  : 'bg-purple-900/90 text-white'
+              key={`${contextId}-${index}`}
+              className={`flex ${
+                message.role === 'user' ? 'justify-end' : 'justify-start'
               }`}
             >
-              {index === processingMessageIndex ? (
-                isCancelled ? (
-                  <div className="flex items-center gap-2 text-red-200" role="status">
-                    <XCircle className="h-4 w-4 text-red-200" />
-                    <span>Cancelled</span>
-                  </div>
+              <div
+                className={cn(
+                  styles.message,
+                  message.role === 'user' ? styles.userMessage : styles.assistantMessage
+                )}
+              >
+                {index === processingMessageIndex ? (
+                  isCancelled ? (
+                    <div className="flex items-center gap-2 text-red-200" role="status">
+                      <XCircle className="h-4 w-4 text-red-200" />
+                      <span>Cancelled</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2" role="status">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Processing...</span>
+                    </div>
+                  )
                 ) : (
-                  <div className="flex items-center gap-2" role="status">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <span>Processing...</span>
+                  <div 
+                    className={cn(
+                      "whitespace-pre-wrap font-sans",
+                      message.role === 'assistant' && "text-left"
+                    )}>
+                    {formatChatMessage(message.content)}
                   </div>
-                )
-              ) : (
-                <div 
-                  className={cn(
-                    "whitespace-pre-wrap font-sans",
-                    message.role === 'assistant' && "text-left"
-                  )}>
-                  {formatChatMessage(message.content)}
-                </div>
-              )}
+                )}
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="border-t p-4">
-        <div className="flex gap-2">
-          <Textarea
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            placeholder="What would you like to create?"
-            className="min-h-[80px] bg-purple-500/5 border-2 border-purple-500/30 text-purple-400 placeholder:text-purple-300/50 focus:border-purple-400 focus:ring-purple-500/50 shadow-[0_0_15px_rgba(147,51,234,0.2)] focus:shadow-[0_0_25px_rgba(147,51,234,0.4)]"
-            disabled={isLoading}
-            aria-label="Chat input"
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-                e.preventDefault();
-                handleSubmit();
-              }
-            }}
-          />
-          <Button
-            onClick={handleSubmit}
-            disabled={!prompt.trim() || isLoading}
-            aria-label={isLoading ? "Generating response..." : "Send message"}
-            className="px-3 bg-purple-500/90 text-white border-2 border-purple-300 shadow-[0_0_25px_rgba(147,51,234,0.9)] hover:shadow-[0_0_35px_rgba(147,51,234,1)] hover:bg-purple-600/90"
-          >
-            {isLoading ? (
-              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-            ) : (
-              <Send className="h-4 w-4" aria-hidden="true" />
-            )}
-          </Button>
+          ))}
         </div>
-      </div>
-    </Card>
+
+        <div className={styles.footer}>
+          <div className="flex gap-2">
+            <Textarea
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              placeholder="What would you like to create?"
+              className={styles.chatInput}
+              disabled={isLoading}
+              aria-label="Chat input"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                  e.preventDefault();
+                  handleSubmit();
+                }
+              }}
+            />
+            <Button
+              onClick={handleSubmit}
+              disabled={!prompt?.trim() || isLoading}
+              aria-label={isLoading ? "Generating response..." : "Send message"}
+              className="px-3 bg-purple-500/90 text-white border-2 border-purple-300 shadow-[0_0_25px_rgba(147,51,234,0.9)] hover:shadow-[0_0_35px_rgba(147,51,234,1)] hover:bg-purple-600/90"
+            >
+              {isLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+              ) : (
+                <Send className="h-4 w-4" aria-hidden="true" />
+              )}
+            </Button>
+          </div>
+        </div>
+      </Card>
+    </>
   );
 }

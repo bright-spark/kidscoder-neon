@@ -10,41 +10,55 @@ const EditorContext = createContext<EditorContext | undefined>(undefined);
 export function EditorProvider({ children }: { children: React.ReactNode }) {
   const [code, setCode] = useState('');
   const [language] = useState('html');
-  const [abortController, setAbortController] = useState<AbortController | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isImproving, setIsImproving] = useState(false);
+  const [isDebugging, setIsDebugging] = useState(false);
+  const [promptCount, setPromptCount] = useState(0);
+  const [currentOperation, setCurrentOperation] = useState<'debug' | 'improve' | 'prompt'>('prompt');
   const { messages, addMessage, updateTotalCharacters } = useChat();
 
   const handleClear = useCallback(() => {
     setCode('');
+    setPromptCount(0);
   }, []);
 
   const handleGenerate = useCallback(async (prompt: string) => {
     if (isProcessing) return;
 
     const controller = new AbortController();
-    setAbortController(controller);
+    setPromptCount(prev => prev + 1);
     setIsProcessing(true);
+    setCurrentOperation('prompt');
 
     try {
-      const generatedCode = await getCodeSuggestions('', prompt, messages, controller.signal);
+      const response = await getCodeSuggestions([
+        { role: 'user', content: prompt }
+      ], controller.signal);
       
-      if (generatedCode) {
-        setCode(generatedCode);
-        addMessage({ role: 'assistant', content: generatedCode });
-        updateTotalCharacters(generatedCode.length);
+      if (response) {
+        setCode(response);
+        if (addMessage) {
+          addMessage({ role: 'assistant', content: response });
+        }
+
+        const totalChars = response.length;
+        showToast.info({
+          title: '✨ Code Generated Successfully',
+          description: `Your code is ready with ${totalChars.toLocaleString()} characters. Check it out in the editor!`,
+          duration: 3000
+        });
       }
     } catch (error: any) {
       console.error('Error generating code:', error);
       showToast.error({
-        title: 'Generation failed',
-        description: error.message || 'Failed to generate code. Please try again.',
-        duration: 2000
+        title: '❌ Generation Failed',
+        description: error.message || 'Something went wrong while generating your code. Please try again or modify your prompt.',
+        duration: 4000
       });
     } finally {
       setIsProcessing(false);
-      setAbortController(null);
     }
-  }, [isProcessing, messages, addMessage, updateTotalCharacters]);
+  }, [isProcessing, addMessage]);
 
   const handleShare = useCallback(async () => {
     if (!code) return;
@@ -67,245 +81,118 @@ export function EditorProvider({ children }: { children: React.ReactNode }) {
       previewLink.click();
 
       showToast.success({
-        title: 'Share link copied!',
-        description: 'The link has been copied to your clipboard and opened in a new tab.',
+        title: '🔗 Share Link Ready!',
+        description: 'Link copied to clipboard and opened in a new tab for preview. Share it with others!',
+        duration: 4000
       });
     } catch (error) {
       console.error('Error sharing code:', error);
       showToast.error({
-        title: 'Share failed',
-        description: 'Failed to generate share link. Please try again.',
+        title: '❌ Share Failed',
+        description: 'Unable to create share link. Please check your connection and try again.',
+        duration: 4000
       });
     }
   }, [code]);
 
   const handleDebug = useCallback(async () => {
-    if (!code || isProcessing) return;
+    if (isProcessing || !code) return;
 
     const controller = new AbortController();
-    setAbortController(controller);
+    setPromptCount(prev => prev + 1);
     setIsProcessing(true);
+    setIsDebugging(true);
+    setCurrentOperation('debug');
 
     try {
-      const toastId = showToast.progress({
-        title: 'Debugging code',
-        description: 'Analyzing and fixing issues...',
-        steps: [
-          { label: 'Analyzing code', status: 'complete' },
-          { label: 'Finding issues', status: 'loading' },
-          { label: 'Suggesting fixes', status: 'pending' }
-        ],
-        progress: 33,
-        duration: 3000
-      });
-
-      const debugPrompt = `As an expert code reviewer, analyze this code and provide a clear, structured assessment:
-
-1. Code Quality Analysis:
-   - Identify potential bugs, logic errors, or runtime issues
-   - Highlight performance bottlenecks or inefficiencies
-   - Check for security vulnerabilities
-
-2. Best Practices Review:
-   - Evaluate code organization and structure
-   - Check for proper error handling
-   - Assess browser compatibility issues
-   - Review accessibility compliance
-
-3. Specific Recommendations:
-   - List concrete issues found
-   - Explain the potential impact of each issue
-   - Provide clear, actionable solutions
-
-Format your response as a concise, bullet-pointed list without including any code blocks. Focus on practical solutions that maintain the code's original functionality.`;
+      const response = await getCodeSuggestions([
+        ...messages,
+        { role: 'user', content: 'Debug this code and explain any issues found:\n\n' + code }
+      ], controller.signal);
       
-      const debugResponse = await getCodeSuggestions(code, debugPrompt, messages, controller.signal);
-      
-      if (debugResponse) {
-        const cleanResponse = debugResponse
-          .replace(/```[\s\S]*?```/g, '') // Remove code blocks
-          .replace(/`[^`]*`/g, '') // Remove inline code
-          .replace(/\n{3,}/g, '\n\n') // Normalize multiple newlines
-          .trim();
-          
-        if (cleanResponse) {
-          addMessage({ 
-            role: 'assistant', 
-            content: cleanResponse
-          });
-          updateTotalCharacters(cleanResponse.length + code.length);
+      if (response) {
+        setCode(response);
+        if (addMessage) {
+          addMessage({ role: 'assistant', content: response });
         }
-        
-        showToast.success({
-          title: 'Debug complete',
-          description: 'Check the chat for debug information.',
-          duration: 2000
+        showToast.warning({
+          title: '🔍 Debug Complete',
+          description: 'Code has been analyzed and improved. Check the editor for changes!',
+          duration: 3000
         });
       }
     } catch (error: any) {
       console.error('Error debugging code:', error);
       showToast.error({
-        title: 'Debug failed',
-        description: error.message || 'Failed to debug code. Please try again.',
-        duration: 2000
+        title: '❌ Debug Failed',
+        description: 'Unable to analyze your code. Please try again or make sure your code is valid.',
+        duration: 4000
       });
     } finally {
+      setIsDebugging(false);
       setIsProcessing(false);
-      setAbortController(null);
     }
-  }, [code, isProcessing, messages, addMessage, updateTotalCharacters]);
+  }, [isProcessing, code, messages, addMessage]);
 
   const handleImprove = useCallback(async () => {
-    if (!code || isProcessing) return;
+    if (isProcessing || !code) return;
 
     const controller = new AbortController();
-    setAbortController(controller);
+    setPromptCount(prev => prev + 1);
     setIsProcessing(true);
+    setIsImproving(true);
+    setCurrentOperation('improve');
 
     try {
-      const toastId = showToast.progress({
-        title: 'Improving code',
-        description: 'Analyzing and enhancing code quality...',
-        steps: [
-          { label: 'Analyzing structure', status: 'complete' },
-          { label: 'Optimizing code', status: 'loading' },
-          { label: 'Applying improvements', status: 'pending' }
-        ],
-        progress: 33,
-        duration: 3000
-      });
-      
-      const improvePrompt = `As a senior software architect specializing in modern web development, enhance this code following industry best practices and cutting-edge patterns. 
-
-OBJECTIVE:
-Transform the code while maintaining its core functionality, focusing on:
-- Performance optimization
-- Code maintainability
-- Error resilience
-- User experience
-- Accessibility (WCAG 2.1)
-- Cross-browser compatibility
-
-REQUIRED IMPROVEMENTS:
-
-1. Architecture & Design:
-   - Apply SOLID principles
-   - Implement modern design patterns
-   - Optimize component structure
-   - Enhance code modularity
-   - Improve state management
-   - Add proper TypeScript types/interfaces
-
-2. Performance Optimization:
-   - Implement code splitting where beneficial
-   - Optimize resource loading
-   - Enhance render performance
-   - Minimize unnecessary re-renders
-   - Add proper memoization
-   - Implement lazy loading
-
-3. Error Handling & Reliability:
-   - Add comprehensive error boundaries
-   - Implement proper error recovery
-   - Add input validation
-   - Include error logging
-   - Add fallback states
-   - Implement retry mechanisms
-
-4. User Experience & Accessibility:
-   - Enhance keyboard navigation
-   - Add ARIA attributes
-   - Improve focus management
-   - Add loading states
-   - Implement proper semantic HTML
-   - Add responsive design patterns
-
-5. Testing & Maintainability:
-   - Add error boundaries
-   - Implement proper prop types
-   - Add code documentation
-   - Improve naming conventions
-   - Enhance code organization
-
-OUTPUT FORMAT:
-1. First provide a brief, bullet-pointed summary of major improvements made
-2. Then provide the complete improved code
-3. Each major section should have descriptive comments explaining the improvements
-
-CONSTRAINTS:
-- Maintain original functionality while enhancing it
-- Follow React/TypeScript best practices
-- Ensure backward compatibility
-- Keep bundle size optimized
-- Maintain responsive design
-- Follow accessibility guidelines
-
-Apply these improvements systematically while maintaining code readability and documenting significant changes.`;
-      
-      const response = await getCodeSuggestions(code, improvePrompt, messages, controller.signal);
+      const response = await getCodeSuggestions([
+        ...messages,
+        { role: 'user', content: 'Improve this code by making it more efficient and adding helpful comments:\n\n' + code }
+      ], controller.signal);
       
       if (response) {
-        const [explanation, ...codeParts] = response.split('```');
-        
-        const improvedCode = codeParts.length > 0 
-          ? codeParts.join('```').replace(/^[a-z]*\n|`+$/g, '').trim()
-          : response;
-        
-        setCode(improvedCode);
-        
-        const cleanExplanation = explanation
-          .replace(/`[^`]*`/g, '')
-          .replace(/\n{3,}/g, '\n\n')
-          .trim();
-          
-        if (cleanExplanation) {
-          addMessage({ 
-            role: 'assistant', 
-            content: cleanExplanation || 'Code has been improved. Check the editor to see the changes.'
-          });
-          updateTotalCharacters(cleanExplanation.length + improvedCode.length);
+        setCode(response);
+        if (addMessage) {
+          addMessage({ role: 'assistant', content: response });
         }
-        
         showToast.success({
-          title: 'Code improved',
-          description: 'The code has been improved and updated in the editor.',
-          duration: 2000
+          title: '✨ Code Improved',
+          description: 'Your code has been enhanced with better practices and comments!',
+          duration: 3000
         });
       }
     } catch (error: any) {
       console.error('Error improving code:', error);
       showToast.error({
-        title: 'Improvement failed',
-        description: error.message || 'Failed to improve code. Please try again.',
-        duration: 2000
+        title: '❌ Improvement Failed',
+        description: 'Unable to improve your code. Please try again or check if the code is valid.',
+        duration: 4000
       });
     } finally {
+      setIsImproving(false);
       setIsProcessing(false);
-      setAbortController(null);
     }
-  }, [code, isProcessing, messages, addMessage, updateTotalCharacters]);
+  }, [isProcessing, code, messages, addMessage]);
 
   const cancelOperation = useCallback(() => {
-    if (abortController) {
-      abortController.abort();
-      setAbortController(null);
-      setIsProcessing(false);
-    }
-  }, [abortController]);
+    setIsProcessing(false);
+    setIsImproving(false);
+    setIsDebugging(false);
+  }, []);
 
   return (
     <EditorContext.Provider
       value={{
         code,
         setCode,
-        language,
-        handleShare,
+        isProcessing,
+        isImproving,
+        isDebugging,
+        currentOperation,
+        promptCount,
         handleClear,
         handleGenerate,
         handleDebug,
         handleImprove,
-        isProcessing,
-        cancelOperation
       }}
     >
       {children}

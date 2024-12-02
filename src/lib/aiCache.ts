@@ -36,12 +36,17 @@ class AICache {
   }
 
   private generateCacheKey(messages: ChatCompletionMessageParam[]): string {
+    // Ensure messages is an array and handle undefined cases
+    const messageArray = Array.isArray(messages) ? messages : [];
+    
     // Create a deterministic key from messages
-    const key = messages.map(msg => ({
+    const key = messageArray.map(msg => ({
       role: msg.role,
-      content: msg.content?.toString().trim()
+      content: msg.content?.toString().trim() || ''
     }));
-    return btoa(JSON.stringify(key));
+    
+    // Use encodeURIComponent to handle Unicode characters properly
+    return encodeURIComponent(JSON.stringify(key));
   }
 
   private loadStats(): CacheStats {

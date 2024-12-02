@@ -34,11 +34,10 @@ interface CodeEditorProps {
 
 export function CodeEditor({ onSwitchToChat, showPreview, onPreviewChange }: CodeEditorProps) {
   const { theme } = useTheme();
-  const { code, setCode, handleDebug: debugCode, handleImprove: improveCode, isProcessing, cancelOperation } = useEditor();
+  const { code, setCode, language, isProcessing, isImproving, isDebugging, promptCount, currentOperation, handleDebug: debugCode, handleImprove: improveCode, cancelOperation } = useEditor();
   const { messages, addMessage } = useChat();
   const [isDownloading, setIsDownloading] = useState(false);
-  const [isDebugging, setIsDebugging] = useState(false);
-  const [isImproving, setIsImproving] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
   const editorRef = useRef<any>(null);
   const { setHtml } = usePreview();
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
@@ -248,13 +247,11 @@ export function CodeEditor({ onSwitchToChat, showPreview, onPreviewChange }: Cod
       label: 'Debug',
       intent: 'debug' as const,
       onClick: async () => {
-        setIsDebugging(true);
         try {
           await debugCode();
         } catch (error) {
           console.error('Debug error:', error);
         }
-        setIsDebugging(false);
       },
       disabled: isDebugging || !code,
     },
@@ -263,13 +260,11 @@ export function CodeEditor({ onSwitchToChat, showPreview, onPreviewChange }: Cod
       label: 'Improve',
       intent: 'improve' as const,
       onClick: async () => {
-        setIsImproving(true);
         try {
           await improveCode();
         } catch (error) {
           console.error('Improve error:', error);
         }
-        setIsImproving(false);
       },
       disabled: isImproving || !code,
     },
@@ -287,8 +282,11 @@ export function CodeEditor({ onSwitchToChat, showPreview, onPreviewChange }: Cod
   return (
     <div className="h-full relative">
       <ProcessingOverlay 
-        isVisible={isProcessing}
-        onCancel={cancelOperation} />
+        isVisible={isProcessing} 
+        operation={currentOperation}
+        promptCount={promptCount}
+        onCancel={cancelOperation}
+      />
       <Card className="flex h-full flex-col overflow-hidden border-none bg-background/60 backdrop-blur supports-[backdrop-filter]:bg-background/60 relative">
         <div className="flex justify-between items-center w-full relative">
           <div className="flex items-center gap-1 sm:gap-2 py-2 pl-2">
