@@ -32,6 +32,7 @@ export function ChatPanel({ onSwitchToEditor, onProcessingStart, onProcessingEnd
   const [processingMessageIndex, setProcessingMessageIndex] = useState<number | null>(null);
   const [abortController, setAbortController] = useState<AbortController | null>(null);
   const [isCancelled, setIsCancelled] = useState(false);
+  const [unusedStarters, setUnusedStarters] = useState<string[]>([]);
   const { messages, addMessage, clearMessages, clearLastMessage, contextId } = useChat();
   const { setCode } = useEditor();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -112,34 +113,151 @@ export function ChatPanel({ onSwitchToEditor, onProcessingStart, onProcessingEnd
     }
   };
 
-  const handleStarter = async () => {
+  const handleStarter = () => {
     if (isLoading || hasSubmitted) return;
     
     const starters = [
-      "Create a fun interactive game for learning multiplication tables",
-      "Build a colorful drawing app with different brush sizes and colors",
-      "Make a simple music player with animated visualizations",
-      "Design a space exploration educational app with planets and facts",
-      "Create a typing practice game with fun animations",
-      "Build a memory card matching game with animal pictures",
-      "Make a basic calculator with colorful buttons and sound effects",
-      "Design a virtual pet care game",
-      "Create a simple weather app with animated weather icons",
-      "Build a word scramble game with hints and scoring",
-      "Make a basic photo filter app with fun effects",
-      "Design a digital clock with customizable themes",
-      "Create a simple todo list with drag and drop",
-      "Build a basic paint program with shape tools",
-      "Make a math quiz game with progress tracking",
-      "Design a virtual piano keyboard with sound",
-      "Create a simple puzzle sliding game",
-      "Build a basic stopwatch with lap times",
-      "Make a color mixing experiment app",
-      "Design a simple story book with page turns"
+      // Beginner Projects (Ages 4-7)
+      "Create a counting game with colorful numbers and animal sounds",
+      "Build a simple alphabet learning app with pictures",
+      "Make a color matching game with basic shapes",
+      "Design a virtual sticker book with drag-and-drop",
+      "Create a basic pattern matching game with shapes",
+      "Build a simple musical instrument with animal sounds",
+      "Make a digital coloring book with easy tools",
+      "Design a basic number tracing game",
+      "Create a simple memory game with fruits",
+      "Build a virtual fish tank with interactive fish",
+
+      // Elementary Projects (Ages 8-10)
+      "Create a multiplication tables game with rewards",
+      "Build a spelling practice app with voice feedback",
+      "Make a basic math quiz with animated characters",
+      "Design a simple typing game with falling words",
+      "Create a basic pixel art editor",
+      "Build a virtual pet care simulator",
+      "Make a simple weather dashboard with animations",
+      "Design a basic maze game with levels",
+      "Create a story generator with choices",
+      "Build a simple music maker with different instruments",
+
+      // Intermediate Projects (Ages 11-13)
+      "Create a space exploration game with planet facts",
+      "Build a virtual science lab with experiments",
+      "Make a word puzzle game with hints",
+      "Design a basic coding blocks interface",
+      "Create a geography quiz with interactive maps",
+      "Build a simple chat bot with responses",
+      "Make a basic physics simulation",
+      "Design a virtual garden with plant growth",
+      "Create a simple 2D platformer game",
+      "Build a basic animation creator",
+
+      // Advanced Projects (Ages 14-17)
+      "Create a full-featured calculator with scientific functions",
+      "Build a complex rhythm game with scoring",
+      "Make a sophisticated drawing app with layers",
+      "Design a chess game with AI opponent",
+      "Create a virtual chemistry lab with reactions",
+      "Build a music composition tool with multiple tracks",
+      "Make a 3D geometry visualization tool",
+      "Design a complex puzzle game with physics",
+      "Create a virtual robotics simulator",
+      "Build an advanced weather prediction app",
+
+      // Creative Tools
+      "Create a comic strip maker with templates",
+      "Build a digital storytelling app with scenes",
+      "Make a music video creator with effects",
+      "Design a 3D character creator",
+      "Create an emoji designer with expressions",
+      "Build a stop-motion animation studio",
+      "Make a virtual art gallery creator",
+      "Design a fashion design studio",
+      "Create a sound effects mixer",
+      "Build a virtual stage lighting designer",
+
+      // Educational Games
+      "Create an interactive periodic table",
+      "Build a historical timeline explorer",
+      "Make a language learning game with pronunciation",
+      "Design a math problem solver with steps",
+      "Create a grammar correction game",
+      "Build a coding concept visualizer",
+      "Make a geometry proof helper",
+      "Design a virtual biology lab",
+      "Create a physics puzzle game",
+      "Build a chemistry molecule builder",
+
+      // STEM Projects
+      "Create a simple circuit simulator",
+      "Build a basic 3D printer interface",
+      "Make a solar system simulator",
+      "Design a DNA structure explorer",
+      "Create a simple machine simulator",
+      "Build a basic robotics controller",
+      "Make an ecosystem simulator",
+      "Design a weather station dashboard",
+      "Create a basic AI demonstration",
+      "Build a renewable energy simulator",
+
+      // Game Development
+      "Create a snake game with power-ups",
+      "Build a tetris clone with themes",
+      "Make a pong game with special effects",
+      "Design a breakout game with levels",
+      "Create a memory card game with categories",
+      "Build a word search puzzle maker",
+      "Make a simple RPG battle system",
+      "Design a tower defense game",
+      "Create a racing game with tracks",
+      "Build a space shooter with upgrades",
+
+      // Creative Coding
+      "Create a fractal generator with controls",
+      "Build a particle system simulator",
+      "Make a generative art creator",
+      "Design a virtual kaleidoscope",
+      "Create a pattern generator with rules",
+      "Build a creative coding playground",
+      "Make an interactive art installation",
+      "Design a music visualizer",
+      "Create a virtual fireworks display",
+      "Build a creative math art tool",
+
+      // Real-World Applications
+      "Create a basic budget tracker",
+      "Build a homework planner with reminders",
+      "Make a recipe calculator with conversions",
+      "Design a simple blog creator",
+      "Create a basic inventory system",
+      "Build a time management tool",
+      "Make a simple quiz maker",
+      "Design a basic presentation tool",
+      "Create a simple data visualizer",
+      "Build a basic project management app"
     ];
     
-    const randomStarter = starters[Math.floor(Math.random() * starters.length)];
-    setPrompt(randomStarter);
+    // Initialize unused starters if empty
+    if (unusedStarters.length === 0) {
+      setUnusedStarters([...starters]);
+    }
+
+    // Get random starter from unused list
+    const randomIndex = Math.floor(Math.random() * unusedStarters.length);
+    const selectedStarter = unusedStarters[randomIndex];
+    
+    // Remove selected starter from unused list
+    const updatedUnusedStarters = [...unusedStarters];
+    updatedUnusedStarters.splice(randomIndex, 1);
+    setUnusedStarters(updatedUnusedStarters);
+
+    // If all starters used, reset the list
+    if (updatedUnusedStarters.length === 0) {
+      setUnusedStarters([...starters]);
+    }
+
+    setPrompt(selectedStarter);
   };
 
   const handleClear = () => {
