@@ -1,5 +1,7 @@
+export type MessageRole = 'user' | 'assistant';
+
 export interface Message {
-  role: 'user' | 'assistant';
+  role: MessageRole;
   content: string;
 }
 
@@ -17,13 +19,19 @@ export interface ChatContext {
 export interface EditorContext {
   code: string;
   setCode: (code: string) => void;
-  language: string;
-  setLanguage: (language: string) => void;
+  isProcessing: boolean;
+  isImproving: boolean;
+  isDebugging: boolean;
+  currentOperation: 'debug' | 'improve' | 'prompt';
+  promptCount: number;
+  handleClear: () => void;
+  handleGenerate: (prompt: string) => Promise<void>;
   handleShare: () => Promise<void>;
   handleDebug: () => Promise<void>;
   handleImprove: () => Promise<void>;
-  isProcessing: boolean;
   cancelOperation: () => void;
+  language: string;
+  setLanguage: (language: string) => void;
 }
 
 export interface PreviewContext {
@@ -31,7 +39,7 @@ export interface PreviewContext {
   setHtml: (html: string) => void;
 }
 
-export type ToastVariant = 'system' | 'error' | 'success' | 'progress';
+export type ToastVariant = 'system' | 'error' | 'success' | 'warning' | 'progress';
 
 export interface ToastOptions {
   title: string;

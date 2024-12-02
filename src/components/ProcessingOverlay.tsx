@@ -5,9 +5,10 @@ import { useEditor } from '@/contexts/EditorContext';
 interface ProcessingOverlayProps {
   isVisible: boolean;
   operation: 'debug' | 'improve' | 'prompt';
+  onCancel?: () => void;
 }
 
-export function ProcessingOverlay({ isVisible, operation }: ProcessingOverlayProps) {
+export function ProcessingOverlay({ isVisible, operation, onCancel }: ProcessingOverlayProps) {
   const [elapsedTime, setElapsedTime] = useState(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const { promptCount } = useEditor();
@@ -99,6 +100,17 @@ export function ProcessingOverlay({ isVisible, operation }: ProcessingOverlayPro
             <span className="text-sm opacity-80">Prompt:</span>
             <span className="font-mono text-base tabular-nums">#{promptCount}</span>
           </div>
+          {onCancel && (
+            <>
+              <div className="w-px h-4 bg-current opacity-20" />
+              <button
+                onClick={onCancel}
+                className="text-sm opacity-80 hover:opacity-100 transition-opacity"
+              >
+                Cancel
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>

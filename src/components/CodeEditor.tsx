@@ -131,6 +131,18 @@ export function CodeEditor({ onSwitchToChat, showPreview, onPreviewChange }: Cod
     };
   }, []);
 
+  useEffect(() => {
+    if (isProcessing) {
+      showToast.system({
+        title: '🤖 Processing Code',
+        description: isDebugging ? 'Analyzing and fixing issues...' : 
+                   isImproving ? 'Making improvements...' : 
+                   'Generating code...',
+        duration: 3000
+      });
+    }
+  }, [isProcessing, isDebugging, isImproving]);
+
   const handleDownload = async () => {
     if (!code) return;
     setIsDownloading(true);
@@ -349,10 +361,9 @@ export function CodeEditor({ onSwitchToChat, showPreview, onPreviewChange }: Cod
               <Editor
                 height="100%"
                 defaultLanguage="html"
-                defaultValue={code}
+                theme={theme === 'light' ? 'vs-light' : 'vs-dark'}
                 value={code}
                 onChange={(value) => setCode(value || '')}
-                theme={theme === 'light' ? 'vs-light' : 'vs-dark'}
                 onMount={handleEditorDidMount}
                 options={{
                   minimap: { enabled: false },
@@ -366,8 +377,21 @@ export function CodeEditor({ onSwitchToChat, showPreview, onPreviewChange }: Cod
                   insertSpaces: true,
                   formatOnPaste: true,
                   formatOnType: true,
+                  readOnly: isProcessing,
                 }}
               />
+              {isProcessing && (
+                <div className="absolute inset-0 bg-black/10 flex items-center justify-center">
+                  <div className="flex flex-col items-center gap-2 p-4 rounded-lg bg-black/80">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+                    <div className="text-white text-sm">
+                      {isDebugging ? 'Debugging Code...' :
+                       isImproving ? 'Improving Code...' :
+                       'Generating Code...'}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

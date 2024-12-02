@@ -9,6 +9,7 @@ function createToast(variant: ToastVariant, options: ToastOptions) {
     system: 'bg-purple-500 text-white rounded-lg shadow-lg border-none',
     error: 'bg-red-500 text-white rounded-lg shadow-lg border-none',
     success: 'bg-green-500 text-white rounded-lg shadow-lg border-none',
+    warning: 'bg-yellow-500 text-white rounded-lg shadow-lg border-none',
     progress: 'bg-orange-500 text-white rounded-lg shadow-lg border-none'
   }
 
@@ -20,11 +21,12 @@ function createToast(variant: ToastVariant, options: ToastOptions) {
   })
 }
 
-export const showToast = {
+const showToast = {
   system: (options: ToastOptions) => createToast('system', options),
   error: (options: ToastOptions) => createToast('error', options),
   success: (options: ToastOptions) => createToast('success', options),
+  warning: (options: ToastOptions) => createToast('warning', options),
   progress: (options: ToastOptions) => createToast('progress', options)
 }
 
-export { toast }
+export { showToast }

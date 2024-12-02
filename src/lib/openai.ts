@@ -6,6 +6,31 @@ import { aiCache } from '@/lib/aiCache';
 // Create a singleton AbortController instance
 let currentController: AbortController | null = null;
 
+function createCombinedSignal(signals: (AbortSignal | undefined)[]): AbortSignal {
+  const controller = new AbortController();
+  
+  // Filter out undefined signals and ensure they are valid AbortSignals
+  const validSignals = signals.filter((signal): signal is AbortSignal => {
+    if (!signal) return false;
+    return signal instanceof AbortSignal || (
+      typeof signal === 'object' && 
+      signal !== null && 
+      'aborted' in signal && 
+      typeof (signal as { aborted: unknown }).aborted === 'boolean'
+    );
+  });
+
+  validSignals.forEach(signal => {
+    if (signal.aborted) {
+      controller.abort();
+    } else {
+      signal.addEventListener('abort', () => controller.abort());
+    }
+  });
+
+  return controller.signal;
+}
+
 function getOpenAIClient() {
   const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
   
@@ -126,7 +151,7 @@ DESIGN SYSTEM:
    - Color-blind friendly
 
 SAFETY GUIDELINES:
-1. Content Safety:
+   1. Content Safety:
    - NO harmful, violent, or inappropriate content
    - NO data collection or tracking
    - NO external links without explicit educational purpose
@@ -180,7 +205,7 @@ COMMENT STRUCTURE:
    - Example: /* FIX: Timer - Added maximum limit to prevent freezing */
 
 4. Safety Comments:
-   - Use /* SAFE: [check] */ for safety measures
+      - Use /* SAFE: [check] */ for safety measures
    - Explain protection methods
    - Example: /* SAFE: Input - Added bounds checking */
 
@@ -237,7 +262,7 @@ COMMENT STRUCTURE:
    - Example: /* CONNECT: Score + Animation - Displaying points with effects */
 
 6. Safety Comments:
-   - Use /* SAFE: [check] */ for safety measures
+      - Use /* SAFE: [check] */ for safety measures
    - Explain protection methods
    - Example: /* SAFE: Memory - Cleaning up unused resources */
 
@@ -281,7 +306,7 @@ RESPONSE FORMAT:
 6. Clearly mark new features
 
 SAFETY GUIDELINES:
-1. Content Safety:
+   1. Content Safety:
    - Kid-friendly improvements
    - Age-appropriate features
    - Educational focus
@@ -358,32 +383,6 @@ export function cancelOpenAIRequest() {
       duration: 2000
     });
   }
-}
-
-// Utility function to combine multiple abort signals into one
-function createCombinedSignal(signals: (AbortSignal | undefined)[]): AbortSignal {
-  const controller = new AbortController();
-  
-  // Filter out undefined signals and ensure they are valid AbortSignals
-  const validSignals = signals.filter((signal): signal is AbortSignal => {
-    if (!signal) return false;
-    return signal instanceof AbortSignal || (
-      typeof signal === 'object' && 
-      signal !== null && 
-      'aborted' in signal && 
-      typeof (signal as { aborted: unknown }).aborted === 'boolean'
-    );
-  });
-
-  validSignals.forEach(signal => {
-    if (signal.aborted) {
-      controller.abort();
-    } else {
-      signal.addEventListener('abort', () => controller.abort());
-    }
-  });
-
-  return controller.signal;
 }
 
 // List of forbidden terms and patterns for kid safety
@@ -482,7 +481,9 @@ export async function generateCode(
     currentController = new AbortController();
 
     // Combine the external signal with our internal controller
-    const combinedSignal = createCombinedSignal([signal]);
+    const combinedSignal = signal 
+      ? createCombinedSignal([signal])
+      : undefined;
 
     if (!import.meta.env.VITE_OPENAI_API_KEY) {
       showToast.error({
@@ -574,36 +575,20 @@ export async function getCodeSuggestions(
 ): Promise<string> {
   try {
     // Add appropriate system prompt based on mode
+    const basePrompt = mode === 'debug' ? debugPrompt : improvePrompt;
     const systemMessage = {
       role: 'system' as const,
-      content: mode === 'debug' ? debugPrompt : improvePrompt
+      content: basePrompt
     };
     
     // Ensure messages is an array and add system prompt
-    const messageArray = [
-      systemMessage,
-      ...(Array.isArray(messages) ? messages : [])
-    ];
-    
-    // Check cache first
-    const cachedResponse = await aiCache.get(messageArray);
-    if (cachedResponse) {
-      return cachedResponse;
-    }
+    const messageArray = Array.isArray(messages) ? [...messages] : [];
+    messageArray.unshift(systemMessage);
 
-    // Create a valid abort signal or use a new one
-    const abortSignal = signal instanceof AbortSignal ? signal : new AbortController().signal;
-
-    // Cancel any existing request
-    if (currentController) {
-      currentController.abort();
-    }
-
-    // Create new controller for this request
-    currentController = new AbortController();
-    
-    // Combine the signals
-    const combinedSignal = createCombinedSignal([abortSignal, currentController.signal]);
+    // Create combined signal
+    const combinedSignal = signal 
+      ? createCombinedSignal([signal])
+      : undefined;
 
     if (!import.meta.env.VITE_OPENAI_API_KEY) {
       showToast.error({
@@ -621,7 +606,7 @@ export async function getCodeSuggestions(
     });
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: 'gpt-4',
       messages: messageArray,
       temperature: 0.7,
       max_tokens: 4096,
@@ -684,11 +669,6 @@ export async function getCodeSuggestions(
         duration: 5000
       });
     }
-    
     throw error;
-  } finally {
-    if (currentController) {
-      currentController = null;
-    }
   }
 }
