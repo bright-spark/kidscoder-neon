@@ -48,3 +48,20 @@ export interface ToastOptions {
 }
 
 export type ButtonIntent = "primary" | "secondary" | "preview" | "danger" | "success" | "ghost" | "link" | "debug" | "improve";
+
+export interface SessionContext {
+  sessionId: string;
+  startTime: Date;
+  lastActive: Date;
+  projectName: string;
+  isActive: boolean;
+  codeHistory: Array<{
+    timestamp: Date;
+    code: string;
+    type: 'generate' | 'debug' | 'improve';
+  }>;
+  updateLastActive: () => void;
+  setProjectName: (name: string) => void;
+  addCodeHistory: (code: string, type: 'generate' | 'debug' | 'improve') => void;
+  clearSession: () => void;
+}

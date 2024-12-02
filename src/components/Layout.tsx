@@ -30,6 +30,7 @@ import { useChat } from '@/contexts/ChatContext';
 import { useEditor } from '@/contexts/EditorContext';
 import { ChatPanel } from './ChatPanel';
 import { CodeEditor } from './CodeEditor';
+import { CodeSandbox } from './CodeSandbox';
 import { ProcessingOverlay } from './ProcessingOverlay';
 import { cn } from '@/lib/utils';
 import JSZip from 'jszip';
@@ -38,15 +39,15 @@ import { saveAs } from 'file-saver';
 export function Layout() {
   const [activePanel, setActivePanel] = useState('chat');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
   const { theme, setTheme } = useTheme();
   const { messages, clearMessages } = useChat();
   const { code, setCode, handleDebug, handleImprove, cancelOperation } = useEditor();
   const { toast } = useToast();
   const [isDownloading, setIsDownloading] = useState(false);
-  
+
   const hasContent = messages.length > 0;
-  const [showPreview, setShowPreview] = useState(false);
-  
+
   const handleClear = () => {
     clearMessages();
     setCode('');
@@ -78,10 +79,10 @@ export function Layout() {
 
       const zip = new JSZip();
       zip.file('index.html', code);
-      
+
       const blob = await zip.generateAsync({ type: 'blob' });
       saveAs(blob, `${safeFileName}.zip`);
-      
+
       toast({
         title: 'Download complete',
         description: 'Your code has been downloaded successfully.',
@@ -213,7 +214,7 @@ export function Layout() {
   return (
     <div className="flex h-screen w-screen flex-col bg-gradient-to-br from-purple-500/20 via-purple-500/10 to-background">
       <ProcessingOverlay isVisible={isProcessing} onCancel={handleCancel} />
-      
+
       {/* Mobile Navigation */}
       <div className="flex h-14 items-center justify-between border-b bg-background/60 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60 md:hidden">
         <div className="flex items-center">
@@ -286,8 +287,8 @@ export function Layout() {
 
       {/* Content */}
       <div className={cn(
-        "h-[calc(100%-3.5rem)] md:h-[calc(100%-4rem)] p-4",
-        "md:grid md:grid-cols-1 md:gap-4"
+        "h-[calc(100%-3.5rem)] md:h-[calc(100%-4rem)]",
+        "flex flex-col"
       )}>
         {activePanel === 'chat' ? (
           <ChatPanel 
@@ -296,11 +297,33 @@ export function Layout() {
             onProcessingEnd={handleProcessingEnd}
           />
         ) : (
-          <CodeEditor 
-            onSwitchToChat={() => setActivePanel('chat')}
-            showPreview={showPreview}
-            onPreviewChange={setShowPreview}
-          />
+          <div className="flex flex-col h-full">
+            <div className={cn(
+              "flex-1 min-h-0",
+              showPreview && "h-1/2"
+            )}>
+              <CodeEditor 
+                onSwitchToChat={() => setActivePanel('chat')}
+                showPreview={showPreview}
+                onPreviewChange={setShowPreview}
+              />
+            </div>
+            {showPreview && (
+              <div className="flex-1 min-h-0 border-t">
+                <CodeSandbox
+                  code={code || ''}
+                  className="w-full h-full"
+                  onError={(error) => {
+                    toast({
+                      title: 'Preview Error',
+                      description: error,
+                      variant: 'destructive'
+                    });
+                  }}
+                />
+              </div>
+            )}
+          </div>
         )}
       </div>
     </div>
